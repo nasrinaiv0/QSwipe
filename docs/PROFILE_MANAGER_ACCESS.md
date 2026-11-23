@@ -1,5 +1,7 @@
 # QSwipe — Profile and manager workflows (demo)
 
+> **Historical.** This describes the JavaScript demo that was replaced by the TypeScript app in 0.3.0. Current access rules live in **Settings → Access & hierarchy** and [RELEASE_GATES.md](RELEASE_GATES.md).
+
 ## What's new
 
 The responsive Profile page gives a sample user a display name, position, short introduction, role/organization summary, reporting line, and JPG/PNG/WebP avatar preview (max 2 MB). Profile text is saved in local browser storage. Photo previews are object URLs **kept only for the current tab session**; images are never uploaded. For the sample member, the name and picture also appear on attendance and team cards. Do not enter real personnel information.

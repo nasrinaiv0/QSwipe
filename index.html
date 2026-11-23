@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!--qswipe:head-->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="QSwipe — attendance, commitments, team hierarchy and QR team onboarding.">
+  <title>QSwipe</title>
+  <link rel="icon" type="image/svg+xml" href="./brand.svg">
+  <script type="module" src="/src/main.ts"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="onboard" id="onboard" hidden></div>
+  <div class="app" id="app" hidden>
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation"></aside>
+    <div class="main-col">
+      <header class="topbar" id="topbar"></header>
+      <main id="main" class="content" tabindex="-1"></main>
+    </div>
+    <nav class="tabbar" id="tabbar" aria-label="Primary"></nav>
+  </div>
+  <noscript><p style="padding:24px;font-family:system-ui">QSwipe needs JavaScript enabled.</p></noscript>
+  <div class="toasts" id="toasts" role="region" aria-label="Notifications" aria-live="polite"></div>
+  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+  <dialog class="dialog" id="dialog"></dialog>
+</body>
+</html>
