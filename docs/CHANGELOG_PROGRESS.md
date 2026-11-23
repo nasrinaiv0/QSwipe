@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0: Minimalist UI and mobile fixes
+
+- **One size scale.** Buttons, inputs, tabs and chips share three heights (30/36/44px; 34/40/46px on touch screens) with consistent padding and radius. Buttons no longer glow; cards are flat with hairline borders; backgrounds are plain.
+- **Less text.** Page headers are a title plus one short line; section titles drop their icons and captions; long hints and explanations are shortened or removed. Today is a greeting, a check-in card, four numbers, compact availability buttons, updates and a small attendance chart.
+- **Mobile fixes.** Full-width bottom sheets (wide dialogs left a 32px gap); close buttons no longer get squeezed; header actions stay on one row (secondary actions become icons); tab bars and filter chips no longer get cut off or wrap; roster/reply rows show compact status icons; report charts keep readable text and the register drops optional columns; the race shows full names (tap a name to cheer) and puts the game above the participant list; inputs use 16px text to stop iOS zoom; keyboard hints hide on touch; links in sheets are no longer underlined; settings sections use a 3-column grid.
+- **Fixes.** Org-chart expand/collapse toggles sit under their own card. The app no longer writes unchanged state to storage when the page is hidden, which could overwrite newer data saved by another tab.
+
 ## 0.4.0: Duck race water and outfits
 
 - **Water.** The race now runs on a canvas pond: layered flowing ripples, a drifting light sheen, twinkling glints, V-shaped wakes, expanding rings, start and finish splashes, red/white lane-rope floats and a checkered finish band. Light and dark themes. Static layers are cached, and quality adapts automatically on slow devices.

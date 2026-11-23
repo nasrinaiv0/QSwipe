@@ -53,13 +53,12 @@ export function createRace(h: RaceHooks) {
     const looks = raceLooks(names, S.ws().ducks);
     const done = r.phase === 'done', run = busy();
     return `<div class="race-wrap">
-      <div class="race-head"><span>${names.length} lanes · tap a duck to dress it up</span><button class="btn sm ghost" type="button" data-action="duck-surprise" ${run ? 'disabled' : ''}>${icon('dice')}Surprise outfits</button></div>
+      <div class="race-head"><span>Tap a duck to dress it up</span><button class="btn sm ghost" type="button" data-action="duck-surprise" ${run ? 'disabled' : ''}>${icon('dice')}Outfits</button></div>
       <div class="pond" style="--lane-h:${laneHeight(names.length)}px;--lanes:${names.length}">
         <div class="dock">${names.map((n, i) => `<div class="dock-lane ${done && r.order[0] === i ? 'winner' : ''} ${r.backed === n ? 'backed' : ''}">
           <span class="lane-pos" id="lane-pos-${i}">${done ? r.order.indexOf(i) + 1 : ''}</span>
           <button class="dock-duck" type="button" data-action="duck-look" data-i="${i}" ${run ? 'disabled' : ''} aria-label="Choose duck and costume for ${esc(n)}. Now: ${esc(lookLabel(looks[i]!))}">${duckSvg(looks[i]!)}</button>
-          <span class="lane-name" title="${esc(n)}">${esc(n)}</span>
-          <button class="cheer" type="button" data-action="duck-cheer" data-i="${i}" aria-pressed="${r.backed === n}" aria-label="Cheer for ${esc(n)}" ${run ? 'disabled' : ''}>${icon('star')}</button>
+          <button class="lane-name" type="button" data-action="duck-cheer" data-i="${i}" aria-pressed="${r.backed === n}" aria-label="Cheer for ${esc(n)}" title="${esc(n)}" ${run ? 'disabled' : ''}><span>${esc(n)}</span>${icon('star')}</button>
         </div>`).join('')}</div>
         <div class="pond-water" id="pond-water"><canvas id="pond-canvas" aria-hidden="true"></canvas>
           ${looks.map((l, i) => `<div class="pond-duck" id="pond-duck-${i}">${duckSvg(l, { waterline: true })}</div>`).join('')}
@@ -67,7 +66,7 @@ export function createRace(h: RaceHooks) {
         </div>
       </div></div>
       <div class="stage-result" role="status">${done ? podium(names, looks)
-        : `<button class="btn primary lg" type="button" data-action="race-start" ${run ? 'disabled' : ''}>${icon('flag')}${run ? 'Racing…' : 'Start race'}</button><span class="hint">${run ? (r.backed ? `Go, <b>${esc(r.backed)}</b>!` : 'And they’re off!') : `${r.backed ? `Cheering for <b>${esc(r.backed)}</b>` : 'Tap ★ to cheer for a duck'} · Space to start`}</span>`}</div>`;
+        : `<button class="btn primary lg" type="button" data-action="race-start" ${run ? 'disabled' : ''}>${icon('flag')}${run ? 'Racing…' : 'Start race'}</button><span class="hint">${run ? (r.backed ? `Go, <b>${esc(r.backed)}</b>!` : 'And they’re off!') : r.backed ? `Cheering for <b>${esc(r.backed)}</b>` : 'Tap a name to cheer'}</span>`}</div>`;
   }
 
   /* ---------------------------------------------------------------- */
@@ -222,11 +221,11 @@ export function createRace(h: RaceHooks) {
     openDialog({
       label: `Dress up ${name}`, className: 'wide',
       html: dialogShell({
-        title: `Dress up ${name}`, sub: 'Choose a duck and a costume. Looks are saved for this name in this workspace.',
+        title: `Dress up ${name}`,
         body: `<div class="look-layout"><div class="look-preview" id="look-preview">${preview()}</div>
           <div class="stack"><div class="seg block" role="tablist" aria-label="Costume part">${SLOTS.map(([k, l]) => `<button type="button" role="tab" data-slot="${k}" aria-selected="${k === slot}">${l}</button>`).join('')}</div>
           <div id="look-panel">${panel()}</div></div></div>`,
-        foot: `<button class="btn ghost" type="button" id="look-random">${icon('dice')}Surprise me</button><span class="grow"></span><button class="btn" type="button" id="look-save">Save</button>${next >= 0 ? `<button class="btn primary" type="button" id="look-next">Save &amp; next ${icon('arrowRight')}</button>` : ''}`,
+        foot: `<button class="btn ghost icon-only" type="button" id="look-random" aria-label="Surprise me" title="Surprise me">${icon('dice')}</button><span class="grow"></span><button class="btn" type="button" id="look-save">Save</button>${next >= 0 ? `<button class="btn primary" type="button" id="look-next">Save &amp; next ${icon('arrowRight')}</button>` : ''}`,
       }),
       onOpen: d => {
         const redraw = (all = false) => {

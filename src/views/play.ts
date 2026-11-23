@@ -6,7 +6,7 @@ import { $, $$, confetti, dialogShell, emptyState, esc, haptic, icon, openDialog
 import { pageHead, type View } from './common';
 import { createRace } from './race';
 
-const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Duck race', 'flag'], ['cards', 'Pick a card', 'cards'], ['trivia', 'Trivia', 'bulb']];
+const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Cards', 'cards'], ['trivia', 'Trivia', 'bulb']];
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#0e7470', '#c0504d'];
 
 interface Trivia { questions: RoundQuestion[]; index: number; picked: (number | null)[]; score: number; streak: number; best: number; done: boolean; deadline: number }
@@ -31,7 +31,7 @@ const busy = () => g.running || duckRace.busy();
 function participants(): string {
   const names = entries();
   return `<aside class="stack loose"><section class="card entries-box"><div class="card-head"><h2>${icon('users')}Participants</h2><span class="pill">${names.length} / 24</span></div>
-    <div class="field"><label for="entries">One name or option per line</label><textarea class="input" id="entries" maxlength="2000" data-input="entries" ${busy() ? 'disabled' : ''}>${esc(S.ws().gameEntries)}</textarea></div>
+    <div class="field"><label class="sr-only" for="entries">One name or option per line</label><textarea class="input" id="entries" maxlength="2000" placeholder="One name per line" data-input="entries" ${busy() ? 'disabled' : ''}>${esc(S.ws().gameEntries)}</textarea></div>
     <div class="cluster" style="margin-top:8px"><button class="btn sm" type="button" data-action="use-team" ${busy() ? 'disabled' : ''}>${icon('users')}Use my team</button><button class="btn sm ghost" type="button" data-action="entries-shuffle" ${names.length < 2 || busy() ? 'disabled' : ''}>${icon('shuffle')}Shuffle</button><button class="btn sm ghost" type="button" data-action="entries-clear" ${!names.length || busy() ? 'disabled' : ''}>Clear</button></div>
     <div class="entry-chips" id="entry-chips" style="margin-top:10px">${names.map(n => `<span class="pill">${esc(n)}</span>`).join('')}</div></section>
     ${g.history.length ? `<section class="card"><div class="card-head"><h2>${icon('history')}Recent results</h2></div><div class="history">${g.history.map(h => `<div class="h-row"><span class="h-game">${icon(GAMES.find(x => x[0] === h.game)?.[2] ?? 'play')}</span><span class="grow truncate"><b>${esc(h.text)}</b></span><small class="muted">${new Date(h.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</small></div>`).join('')}</div></section>` : ''}</aside>`;
@@ -71,7 +71,7 @@ function wheel(): string {
           <text class="wheel-slice-label" x="250" y="250" transform="rotate(${mid - 90} 250 250) translate(${n > 12 ? 150 : 140} 0)${mid > 180 ? ' rotate(180 250 250)' : ''}" fill="${i % COLORS.length === 3 ? '#1b1b1b' : '#fff'}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle">${esc(name.length > 16 ? `${name.slice(0, 15)}…` : name)}</text></g>`;
       }).join('')}</g></svg>
     <button class="wheel-hub" type="button" data-action="spin" aria-label="Spin the wheel" ${g.running ? 'disabled' : ''}><img src="./brand.svg" alt=""></button></div>
-    <div class="stage-result" role="status">${g.winner ? `<span class="eyebrow">Selected</span><span class="winner">${esc(g.winner)}</span>${resultActions()}` : `<button class="btn primary lg" type="button" data-action="spin" ${g.running ? 'disabled' : ''}>${icon('wheel')}${g.running ? 'Spinning…' : 'Spin'}</button><span class="hint">or press Space</span>`}</div>`;
+    <div class="stage-result" role="status">${g.winner ? `<span class="eyebrow">Selected</span><span class="winner">${esc(g.winner)}</span>${resultActions()}` : `<button class="btn primary lg" type="button" data-action="spin" ${g.running ? 'disabled' : ''}>${icon('wheel')}${g.running ? 'Spinning…' : 'Spin'}</button><span class="hint keys">or press Space</span>`}</div>`;
 }
 
 function spin() {
@@ -125,9 +125,9 @@ function triviaSetup(): string {
     <div class="field"><span class="label">Category</span><div class="cat-chips">${cats.map(c => `<button class="chip" type="button" data-action="trivia-cat" data-cat="${esc(c)}" aria-pressed="${g.cat === c}">${esc(c)}${c !== 'Mixed' && c !== 'Math' ? ` <span class="count">${bank.filter(q => q.category === c).length}</span>` : ''}</button>`).join('')}</div></div>
     <div class="field"><span class="label">Questions</span><div class="seg">${[5, 10, 15].map(n => `<button type="button" data-action="trivia-len" data-n="${n}" aria-pressed="${g.len === n}">${n}</button>`).join('')}</div></div>
     <div class="field"><span class="label">Timer per question</span><div class="seg">${([0, 15, 30] as const).map(n => `<button type="button" data-action="trivia-timer" data-n="${n}" aria-pressed="${S.settings().triviaTimer === n}">${n ? `${n}s` : 'Off'}</button>`).join('')}</div></div>
-    ${bank.length ? '' : `<div class="notice">${icon('info')}<span>Your team's question bank is empty, so rounds use generated math questions.${canEditBank() ? ' Add your own questions to make it yours.' : ''}</span></div>`}
+    ${bank.length ? '' : `<div class="notice">${icon('info')}<span>No team questions yet · math only</span></div>`}
     <div class="cluster"><button class="btn primary lg" type="button" data-action="trivia-start">${icon('bulb')}Start round</button>${canEditBank() ? `<button class="btn" type="button" data-action="bank-open">${icon('list')}Question bank (${bank.length})</button>` : ''}</div>
-    ${S.data.triviaBest ? `<p class="hint">Best score on this device: ${S.data.triviaBest}%</p>` : ''}</div>`;
+    ${S.data.triviaBest ? `<p class="hint">Best: ${S.data.triviaBest}%</p>` : ''}</div>`;
 }
 
 function triviaPlay(t: Trivia): string {
@@ -138,7 +138,7 @@ function triviaPlay(t: Trivia): string {
     ${S.settings().triviaTimer && !answered ? '<div class="timer" id="timer"><span></span></div>' : ''}
     <h2 class="trivia-q">${esc(q.question)}</h2>
     <div class="options">${q.options.map((o, i) => `<button class="option ${answered ? (i === q.answer ? 'correct' : i === picked ? 'wrong' : 'muted-opt') : ''}" type="button" style="--i:${i}" data-action="trivia-answer" data-i="${i}" ${answered ? 'disabled' : ''}><span class="key">${i + 1}</span>${esc(o)}</button>`).join('')}</div>
-    ${answered ? `<div class="between"><span class="${picked === q.answer ? 'pill good' : 'pill bad'}">${picked === q.answer ? 'Correct!' : picked === -1 ? `Time's up · ${esc(q.options[q.answer]!)}` : `Answer: ${esc(q.options[q.answer]!)}`}</span><button class="btn primary" type="button" data-action="trivia-next">${t.index + 1 === t.questions.length ? 'See results' : 'Next'} ${icon('arrowRight')}</button></div>` : '<p class="hint">Press 1–4 to answer.</p>'}</div>`;
+    ${answered ? `<div class="between"><span class="${picked === q.answer ? 'pill good' : 'pill bad'}">${picked === q.answer ? 'Correct!' : picked === -1 ? `Time's up · ${esc(q.options[q.answer]!)}` : `Answer: ${esc(q.options[q.answer]!)}`}</span><button class="btn primary" type="button" data-action="trivia-next">${t.index + 1 === t.questions.length ? 'See results' : 'Next'} ${icon('arrowRight')}</button></div>` : '<p class="hint keys">Press 1–4 to answer.</p>'}</div>`;
 }
 
 function triviaResults(t: Trivia): string {
@@ -228,7 +228,7 @@ export const play: View = {
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
     const t = g.trivia;
     const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
-    return `${pageHead({ title: 'Play', lede: 'Fair, crypto-random picks and quick games for huddles, classes and meetings.' })}${tabs}
+    return `${pageHead({ title: 'Play' })}${tabs}
       ${id === 'trivia' ? `<section class="card"><div class="stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
   },
   mount(root) {

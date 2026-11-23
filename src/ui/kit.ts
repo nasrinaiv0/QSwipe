@@ -28,9 +28,9 @@ export function avatar(p: Person | undefined, size = '', opts: { status?: Status
 }
 
 export function statusPill(status: Status | undefined | null, compact = false): string {
-  if (status === 'present') return `<span class="pill good">${icon('check')}${compact ? '' : 'Present'}</span>`;
-  if (status === 'absent') return `<span class="pill bad">${icon('x')}${compact ? '' : 'Absent'}</span>`;
-  return `<span class="pill">${icon('clock')}${compact ? '' : 'Unmarked'}</span>`;
+  if (status === 'present') return `<span class="pill good status" title="Present">${icon('check')}${compact ? '' : 'Present'}</span>`;
+  if (status === 'absent') return `<span class="pill bad status" title="Absent">${icon('x')}${compact ? '' : 'Absent'}</span>`;
+  return `<span class="pill status" title="Unmarked">${icon('clock')}${compact ? '' : 'Unmarked'}</span>`;
 }
 
 export const COMMIT_META: Record<Commitment, { label: string; cls: string; icon: string; blurb: string }> = {
@@ -40,7 +40,7 @@ export const COMMIT_META: Record<Commitment, { label: string; cls: string; icon:
 };
 export function commitPill(c: Commitment | undefined): string {
   const m = c && COMMIT_META[c];
-  return m ? `<span class="pill ${m.cls}">${icon(m.icon)}${m.label}</span>` : `<span class="pill">${icon('clock')}No reply</span>`;
+  return m ? `<span class="pill ${m.cls} status" title="${m.label}">${icon(m.icon)}${m.label}</span>` : `<span class="pill status" title="No reply">${icon('clock')}No reply</span>`;
 }
 
 export const levelChip = (p: Person, titles?: Titles) =>
@@ -287,7 +287,7 @@ export function photoFromFile(file: File, size = 128): Promise<string> {
 
 export const lockedPanel = (o: { title: string; need: string; body?: string }) =>
   `<div class="empty"><div class="empty-icon">${icon('lock')}</div><strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
-  <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}View team structure</a></div></div>`;
+  <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}Team</a></div></div>`;
 
 export const emptyState = (o: { icon: string; title: string; body: string; actions?: string }) =>
   `<div class="empty"><div class="empty-icon">${icon(o.icon)}</div><strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;

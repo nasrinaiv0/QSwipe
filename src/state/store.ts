@@ -44,9 +44,13 @@ export function load(): void {
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
-export const persist = () => { clearTimeout(timer); timer = setTimeout(flush, 120); };
-export function flush(): boolean {
+/** True while there are changes not yet written; flushing a clean state must never overwrite newer storage. */
+let dirty = false;
+export const persist = () => { dirty = true; clearTimeout(timer); timer = setTimeout(flush, 120); };
+export function flush(force = false): boolean {
   clearTimeout(timer);
+  if (!dirty && !force) return true;
+  dirty = false;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch {
     document.dispatchEvent(new CustomEvent('qswipe:storage-error'));
     return false;
@@ -139,7 +143,7 @@ export function deleteWorkspace(id: string): void {
   delete data.workspaces[id];
   data.activeId = Object.keys(data.workspaces)[0] ?? null;
   resetSession();
-  flush();
+  flush(true);
 }
 
 export function setPreview(id: string | null): boolean {
@@ -441,7 +445,7 @@ export function setDuckLook(name: string, look: DuckLook): boolean {
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }
 
-export function replaceData(next: AppData) { data = next; resetSession(); flush(); }
+export function replaceData(next: AppData) { data = next; resetSession(); flush(true); }
 export function clearWorkspaceRecords() {
   const w = ws();
   Object.assign(w, { attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [] });
