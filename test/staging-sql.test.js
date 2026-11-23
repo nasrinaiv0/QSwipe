@@ -31,3 +31,20 @@ test('no writes are introduced for real attendance without the later audited P3 
   assert.doesNotMatch(sql,/create table .*attendance_(?:current|events)/i);
   assert.doesNotMatch(sql,/create policy .*for (insert|update|delete) to authenticated using/i);
 });
+
+
+test('correlated RLS policies qualify OUTER row columns to prevent inner id capture',()=>{
+  // PostgreSQL resolves ambiguous column names to the innermost query first.
+  for(const [policy,outer] of [
+    ['qs_stg_my_workspace','qs_stg_workspaces.id'],
+    ['qs_stg_my_organization','qs_stg_organizations.id'],
+    ['qs_stg_my_site','qs_stg_sites.id'],
+    ['qs_stg_my_units','qs_stg_units.workspace_id']
+  ]){
+    const match=sql.match(new RegExp(`create policy ${policy}\\b[\\s\\S]*?;`,'i'));
+    assert.ok(match,`Missing policy ${policy}`);
+    assert.ok(match[0].includes(outer),`${policy} needs qualified outer ${outer}`);
+  }
+  assert.match(sql,/w\.site_id = qs_stg_sites\.id and w\.organization_id = qs_stg_sites\.organization_id/i);
+  assert.doesNotMatch(sql,/m\.workspace_id = id\b|w\.organization_id = id\b|w\.site_id = id\b|w\.organization_id = organization_id\b|w\.id = workspace_id\b/i);
+});
