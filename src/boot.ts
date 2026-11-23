@@ -13,5 +13,6 @@
   root.dataset.accent = typeof s.accent === 'string' && /^(green|teal|blue|violet|rose|amber)$/.test(s.accent) ? s.accent : 'green';
   if (s.density === 'comfortable') root.dataset.density = 'comfortable';
   if (s.textSize === 'large') root.dataset.text = 'large';
+  if (s.glass === 'clear' || s.glass === 'tinted') root.dataset.glass = s.glass;
   if (s.motion === 'reduced' || (s.motion !== 'full' && mq('(prefers-reduced-motion: reduce)'))) root.dataset.motion = 'reduce';
 })();

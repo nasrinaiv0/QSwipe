@@ -17,14 +17,22 @@ export interface View {
 export const pageHead = (o: { title: string; lede?: string; eyebrow?: string; actions?: string }) =>
   `<header class="page-head"><div>${o.eyebrow ? `<span class="eyebrow">${esc(o.eyebrow)}</span>` : ''}<h1>${esc(o.title)}</h1>${o.lede ? `<p class="lede">${esc(o.lede)}</p>` : ''}</div>${o.actions ? `<div class="head-actions">${o.actions}</div>` : ''}</header>`;
 
-export const kpi = (o: { label: string; value: number | string; key?: string; suffix?: string; foot?: string; icon?: string; accent?: boolean }) =>
-  `<div class="kpi ${o.accent ? 'accent' : ''}"><span class="label">${o.icon ? icon(o.icon) : ''}${esc(o.label)}</span>
-  <strong class="value num" ${typeof o.value === 'number' ? `data-count="${o.value}" data-count-key="${esc(o.key ?? o.label)}" ${o.suffix ? `data-suffix="${esc(o.suffix)}"` : ''}` : ''}>${esc(o.value)}${o.suffix && typeof o.value === 'number' ? esc(o.suffix) : ''}</strong>${o.foot ? `<span class="foot">${esc(o.foot)}</span>` : ''}</div>`;
+export const kpi = (o: { label: string; value: number | string; key?: string; suffix?: string; foot?: string; icon?: string; accent?: boolean; href?: string }) =>
+  `<${o.href ? `a href="${o.href}"` : 'div'} class="kpi ${o.accent ? 'accent' : ''}"><span class="label">${o.icon ? icon(o.icon) : ''}${esc(o.label)}</span>
+  <strong class="value num" ${typeof o.value === 'number' ? `data-count="${o.value}" data-count-key="${esc(o.key ?? o.label)}" ${o.suffix ? `data-suffix="${esc(o.suffix)}"` : ''}` : ''}>${esc(o.value)}${o.suffix && typeof o.value === 'number' ? esc(o.suffix) : ''}</strong>${o.foot ? `<span class="foot">${esc(o.foot)}</span>` : ''}</${o.href ? 'a' : 'div'}>`;
+
+/** A button whose text label hides on phones (the icon remains, the label stays as its accessible name). */
+export const cbtn = (o: { label: string; icon: string; action?: string; href?: string; cls?: string; attrs?: string }) => {
+  const inner = `${icon(o.icon)}<span class="lbl">${esc(o.label)}</span>`;
+  return o.href
+    ? `<a class="btn collapse ${o.cls ?? ''}" href="${o.href}" aria-label="${esc(o.label)}" title="${esc(o.label)}" ${o.attrs ?? ''}>${inner}</a>`
+    : `<button class="btn collapse ${o.cls ?? ''}" type="button" ${o.action ? `data-action="${o.action}"` : ''} aria-label="${esc(o.label)}" title="${esc(o.label)}" ${o.attrs ?? ''}>${inner}</button>`;
+};
 
 export function previewBanner(): string {
   if (!S.session.previewId) return '';
   const p = S.me();
-  return `<div class="preview-banner" role="status">${icon('eye')}<span>Previewing as <b>${esc(p.name)}</b> · ${esc(S.levelTitle(p.level))}. Actions you take are recorded as them.</span><button class="btn sm" type="button" data-action="exit-preview">Exit preview</button></div>`;
+  return `<div class="preview-banner" role="status">${icon('eye')}<span class="truncate">Previewing as <b>${esc(p.name)}</b> · ${esc(S.levelTitle(p.level))}</span><button class="btn sm" type="button" data-action="exit-preview">Exit</button></div>`;
 }
 
 export const field = (o: { id: string; label: string; control: string; hint?: string; cls?: string }) =>

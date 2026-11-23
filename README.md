@@ -16,7 +16,7 @@ Attendance, commitments, team hierarchy and QR team onboarding: a local-first we
 | **Commitments** | Members confirm availability for upcoming sessions (with optional notes). Leaders see a conservative projection: confirmed replies only, against a coverage target, per branch. |
 | **Reports** | Attendance rate with trend vs. previous period, completion, absences, perfect attendance, a daily stacked chart with tooltips, per-branch rates, audit log, sortable register and CSV export (formula-injection safe). |
 | **Updates** | Announcements scoped to a branch or the whole workspace, importance flag, acknowledgements with read counts. |
-| **Play** | Crypto-fair wheel, duck race, pick-a-card, and trivia from the team's own question bank plus generated math. |
+| **Play** | Crypto-fair wheel; a **duck race** on animated canvas water (ripples, glints, wakes, splashes, lane ropes) where every racer can pick a duck colour and a costume (hat, eyewear, neckwear), saved per name, plus a 3-2-1 start and a “cheer for” pick; pick-a-card; and trivia from the team's own question bank plus generated math. |
 | **Settings** | Theme (system/light/dark), accent, compact/comfortable density, text size, motion, undo window, swipe sensitivity, haptics, sounds, workspace schedule and labels, access matrix, JSON backup export/import, clear/delete. |
 
 Also: command palette (`Ctrl/⌘ K`), keyboard shortcuts (`?`), responsive layout from 320 px with an icon rail and mobile tab bar, view transitions, and reduced-motion support.
@@ -39,6 +39,7 @@ Camera scanning needs a secure context (`https://` or `localhost`). Without a ca
 ```
 src/core/      pure domain logic: model (hierarchy, policy, attendance, reports), codes (QR payloads), games, data (validation)
 src/state/     store: persisted AppData, session state, permission-checked mutations
+src/ui/        kit, icons, duck artwork (duck-art.ts) and the canvas water engine (pond.ts)
 src/qr/        QR rendering, camera scanner (BarcodeDetector, lazy jsQR fallback), join/check-in flows
 src/views/     one module per page; src/shell.ts holds navigation, menus and the command palette
 src/boot.ts    pre-paint theme script, inlined at build with a CSP hash (see vite.config.ts)

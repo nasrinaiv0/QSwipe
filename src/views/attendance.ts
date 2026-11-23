@@ -4,8 +4,8 @@ import { addDays, isIsoDate, markDecision, pendingPeople, percent, rosterStats, 
 import type { Person, Status } from '../core/types';
 import { showPass } from '../qr/flows';
 import * as S from '../state/store';
-import { $, $$, avatar, closeDialog, confirmDialog, dialogShell, emptyState, esc, fmtDate, fmtTime, haptic, icon, openDialog, plural, reducedMotion, ring, sound, statusPill, toast, wait } from '../ui/kit';
-import { pageHead, type View } from './common';
+import { $, $$, avatar, closeDialog, confirmDialog, dialogShell, emptyState, esc, fmtDate, fmtTime, haptic, icon, openDialog, reducedMotion, ring, sound, statusPill, toast, wait } from '../ui/kit';
+import { cbtn, pageHead, type View } from './common';
 
 let busy = false;
 
@@ -43,7 +43,7 @@ function deck(): string {
   }
   const visible = q.slice(0, 3);
   return `<div class="deck-wrap">
-    <div class="deck-count" aria-live="polite">${ui.attTab === 'self' ? 'Your check-in' : `${plural(q.length, 'person', 'people')} to review`}</div>
+    <div class="deck-count" aria-live="polite">${ui.attTab === 'self' ? '' : `${q.length} left`}</div>
     <div class="deck" id="deck">${visible.map((p, i) => card(p, i)).reverse().join('')}</div>
     <div class="deck-actions">
       <button class="round-btn bad" type="button" data-action="deck-mark" data-status="absent" aria-label="Mark absent (←)">${icon('x')}</button>
@@ -78,7 +78,7 @@ function rosterRows(): string {
       <span class="grow"><strong class="truncate">${esc(p.name)}${p.id === me.id ? ' <span class="muted">(you)</span>' : ''}</strong><small class="truncate">${rec ? `${fmtTime(rec.at)}${by && by.id !== p.id ? ` · by ${esc(by.name)}` : ''}${rec.via === 'pass' ? ' · QR pass' : rec.via === 'correction' ? ' · corrected' : ''}` : esc(S.branchName(p) || p.position || S.levelTitle(p.level))}</small></span>
       ${statusPill(s)}
       <span class="row-actions">${decision.ok ? `<button class="btn sm icon-only good" type="button" data-action="att-quick" data-id="${p.id}" data-status="present" aria-label="Mark ${esc(p.name)} present">${icon('check')}</button><button class="btn sm icon-only bad" type="button" data-action="att-quick" data-id="${p.id}" data-status="absent" aria-label="Mark ${esc(p.name)} absent">${icon('x')}</button>`
-        : s && canCorrect && branchIds.has(p.id) ? `<button class="btn sm ghost" type="button" data-action="att-correct" data-id="${p.id}">${icon('edit')}Correct</button>` : ''}</span></div>`;
+        : s && canCorrect && branchIds.has(p.id) ? `<button class="btn sm ghost icon-only" type="button" data-action="att-correct" data-id="${p.id}" aria-label="Correct ${esc(p.name)}" title="Correct">${icon('edit')}</button>` : ''}</span></div>`;
   }).join('');
   return rows || '<p class="muted small" style="padding:14px 0">Nobody matches this filter.</p>';
 }
@@ -88,11 +88,11 @@ function roster(): string {
   const stats = rosterStats(rosterPeople(), S.records(date));
   const chip = (id: string, label: string, n: number) => `<button class="chip" type="button" data-action="att-filter" data-filter="${id}" aria-pressed="${ui.rosterFilter === id}">${label} <span class="count">${n}</span></button>`;
   const w = (n: number) => (stats.scheduled ? n : 0);
-  return `<section class="card"><div class="card-head"><div><h2>${icon('users')}Roster</h2><p class="sub">${esc(S.scopeLabel())} · ${plural(stats.scheduled, 'person', 'people')}</p></div></div>
+  return `<section class="card"><div class="card-head"><h2>Roster</h2><span class="pill">${stats.scheduled}</span></div>
     <div class="stackbar" role="img" aria-label="${stats.present} present, ${stats.absent} absent, ${stats.pending} unmarked" style="margin-bottom:8px"><span class="present" style="flex-grow:${w(stats.present)}"></span><span class="absent" style="flex-grow:${w(stats.absent)}"></span><span class="pending" style="flex-grow:${w(stats.pending)}"></span></div>
     <div class="legend" style="margin-bottom:12px"><span><i class="present"></i>Present ${stats.present}</span><span><i class="absent"></i>Absent ${stats.absent}</span><span><i class="pending"></i>Unmarked ${stats.pending}</span></div>
     <div class="input-icon" style="margin-bottom:8px">${icon('search')}<input class="input" id="att-search" type="search" placeholder="Search" value="${esc(ui.rosterQuery)}" data-input="att-search" aria-label="Search roster"></div>
-    <div class="cluster" style="margin-bottom:6px">${chip('all', 'All', stats.scheduled)}${chip('pending', 'Unmarked', stats.pending)}${chip('present', 'Present', stats.present)}${chip('absent', 'Absent', stats.absent)}</div>
+    <div class="cluster chips-row" style="margin-bottom:6px">${chip('all', 'All', stats.scheduled)}${chip('pending', 'Unmarked', stats.pending)}${chip('present', 'Present', stats.present)}${chip('absent', 'Absent', stats.absent)}</div>
     <div class="list list-scroll" id="roster-list">${rosterRows()}</div></section>`;
 }
 
@@ -257,15 +257,15 @@ export const attendance: View = {
     if (!canVerify) ui.attTab = 'self';
     const past = date < today;
     const pending = canVerify ? pendingPeople(S.branch(), S.records(date)).length : 0;
-    return `${pageHead({ title: 'Attendance', lede: `${fmtDate(date, { weekday: 'long', month: 'long', day: 'numeric' })} · ${shiftLabel(S.cfg())}${S.isSessionDay(date) ? '' : ' · not a scheduled session day'}`, actions: `
+    return `${pageHead({ title: 'Attendance', lede: `${shiftLabel(S.cfg())}${S.isSessionDay(date) ? '' : ' · no session'}`, actions: `
         <div class="date-nav"><button class="btn sm ghost icon-only" type="button" data-action="att-day" data-dir="-1" aria-label="Previous session">${icon('chevronLeft')}</button>
         <input type="date" id="att-date" value="${date}" max="${addDays(today, 14)}" data-change="att-date" aria-label="Session date">
         <button class="btn sm ghost icon-only" type="button" data-action="att-day" data-dir="1" aria-label="Next session">${icon('chevronRight')}</button></div>
         ${date !== today ? `<button class="btn sm" type="button" data-action="att-today">Today</button>` : ''}
-        ${canVerify ? `<button class="btn sm" type="button" data-action="scan">${icon('scan')}Scan passes</button>` : S.self().passKey ? `<button class="btn sm" type="button" data-action="att-pass">${icon('qr')}My pass</button>` : ''}` })}
-      ${past ? `<div class="notice warn" style="margin-bottom:var(--gap)">${icon('history')}<span>You are editing a past session. Late entries are recorded with the current time in the audit log.</span></div>` : ''}
+        ${canVerify ? cbtn({ label: 'Scan passes', icon: 'scan', action: 'scan' }) : S.self().passKey ? cbtn({ label: 'My pass', icon: 'qr', action: 'att-pass' }) : ''}` })}
+      ${past ? `<div class="notice warn" style="margin-bottom:var(--gap)">${icon('history')}<span>Past session · changes are logged</span></div>` : ''}
       <div class="grid main-side">
-        <section class="card"><div class="card-head"><h2>${icon('hand')}${ui.attTab === 'self' ? 'My check-in' : 'Verification queue'}</h2>
+        <section class="card"><div class="card-head"><h2>${ui.attTab === 'self' ? 'My check-in' : 'Queue'}</h2>
           ${canVerify ? `<div class="seg" role="tablist" aria-label="Queue"><button type="button" role="tab" data-action="att-tab" data-tab="verify" aria-selected="${ui.attTab === 'verify'}">Branch <span class="count">${pending}</span></button><button type="button" role="tab" data-action="att-tab" data-tab="self" aria-selected="${ui.attTab === 'self'}">Me</button></div>` : ''}</div>
           ${deck()}</section>
         ${roster()}

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0: iOS 27-style design
+
+- **Liquid Glass on the navigation layer only.** The sidebar, top bar, tab bar, sheets, toasts, tooltips and floating controls use a glass material: tinted body, darkened rim, bright specular edge and soft shadow, as in iOS 27's refined Liquid Glass. Content stays on solid grouped surfaces so text remains easy to read. Only layers that content scrolls under use a live blur.
+- **Glass setting.** Settings → Appearance → Glass offers Clear, Regular and Tinted, mirroring iOS 27's intensity control. *Reduce transparency* and *Increase contrast* system settings make glass opaque automatically.
+- **Navigation.** Floating capsule tab bar on phones with a lens-style selected tab and a soft scroll-edge fade. The top bar is clear at rest; once content scrolls under it, it becomes a uniform glass bar showing the page title. The desktop sidebar floats as a rounded glass panel with accent-tinted icons.
+- **Large titles and system type.** Pages open with iOS-style large titles. The font stack prefers SF Pro (with SF Pro Rounded for numbers) and falls back to the platform UI font.
+- **Controls.** Capsule buttons (filled, tinted, gray, plain) with a quick press and spring release; capsule segmented controls with a raised thumb; iOS switches whose knob stretches while pressed; filled text fields and capsule search fields; circular avatars; red notification badges.
+- **Lists and surfaces.** iOS grouped palette (light `#f2f2f7`, dark true black with `#1c1c1e` cards), borderless rounded cards, separators inset to the text, settings sections with coloured glyph tiles, sheets that float inset from the screen edges with large corners.
+- **Interactions.** Segmented controls and the tab bar slide their selection to the new choice with a spring. On phones, sheets follow your finger when dragged by the grabber or header: pull down far or fast to close, otherwise they spring back. Keyboard-shortcut hints are hidden on touch screens.
+- **Colour.** Accents use iOS system hues, darkened where needed so white text keeps at least 4.5:1 contrast. Dark mode uses the bright iOS green, teal and orange with dark text. Chart colours keep their colour-vision-safe values.
+
+## 0.5.0: Minimalist UI and mobile fixes
+
+- **One size scale.** Buttons, inputs, tabs and chips share three heights (30/36/44px; 34/40/46px on touch screens) with consistent padding and radius. Buttons no longer glow; cards are flat with hairline borders; backgrounds are plain.
+- **Less text.** Page headers are a title plus one short line; section titles drop their icons and captions; long hints and explanations are shortened or removed. Today is a greeting, a check-in card, four numbers, compact availability buttons, updates and a small attendance chart.
+- **Mobile fixes.** Full-width bottom sheets (wide dialogs left a 32px gap); close buttons no longer get squeezed; header actions stay on one row (secondary actions become icons); tab bars and filter chips no longer get cut off or wrap; roster/reply rows show compact status icons; report charts keep readable text and the register drops optional columns; the race shows full names (tap a name to cheer) and puts the game above the participant list; inputs use 16px text to stop iOS zoom; keyboard hints hide on touch; links in sheets are no longer underlined; settings sections use a 3-column grid.
+- **Fixes.** Org-chart expand/collapse toggles sit under their own card. The app no longer writes unchanged state to storage when the page is hidden, which could overwrite newer data saved by another tab.
+
+## 0.4.0: Duck race water and outfits
+
+- **Water.** The race now runs on a canvas pond: layered flowing ripples, a drifting light sheen, twinkling glints, V-shaped wakes, expanding rings, start and finish splashes, red/white lane-rope floats and a checkered finish band. Light and dark themes. Static layers are cached, and quality adapts automatically on slow devices.
+- **Ducks and costumes.** Original SVG ducks in 10 colours with 11 hats, 6 eyewear and 5 neckwear options (plus none). Tap a duck on the dock to dress it up, use *Save & next* to work through the line-up, or *Surprise outfits*. Looks are saved per participant name in the workspace (validated on load and import, capped at 200). Unsaved racers get distinct default colours.
+- **Race flow.** 3-2-1-GO countdown, ducks bob and lean into their speed, live positions, a podium with each winner's duck, and a ★ “cheer for” pick that reports where your duck finished. Reduced motion skips straight to the result.
+
 ## 0.3.0: TypeScript rebuild, hierarchy access, settings, QR onboarding
 
 **Breaking.** Storage moved to `qswipe-v3`; data from the 0.1 demo is not migrated (it was sample data). The `public/*.js` demo and `server.mjs` are removed in favour of Vite.

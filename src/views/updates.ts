@@ -1,9 +1,9 @@
 import { bus } from '../bus';
 import { audienceOptions, relativeTime } from '../core/model';
 import * as S from '../state/store';
-import { $, avatar, emptyState, esc, icon, levelChip, toast } from '../ui/kit';
+import { $, avatar, emptyState, esc, icon, toast } from '../ui/kit';
 import { modKey } from '../shell';
-import { options, pageHead, type View } from './common';
+import { cbtn, options, pageHead, type View } from './common';
 
 function composer(): string {
   if (!S.can('updates.post')) return '';
@@ -30,14 +30,14 @@ export const updates: View = {
       const { acked, reach } = S.ackCount(a);
       return `<article class="post ${read ? '' : 'unread'} ${a.priority === 'important' ? 'important' : ''}">
         ${author ? avatar(author, 'sm', { round: true }) : '<span class="avatar sm round">?</span>'}
-        <div><div class="post-head"><strong class="post-title">${esc(author?.name ?? 'Former member')}</strong>${author ? levelChip(author) : ''}<span class="pill">${icon('users')}${esc(S.audienceLabel(a.scopeId))}</span>${a.priority === 'important' ? `<span class="pill warn">${icon('alert')}Important</span>` : ''}<small>${relativeTime(a.at)}</small></div>
+        <div><div class="post-head"><strong class="post-title">${esc(author?.name ?? 'Former member')}</strong><span class="pill">${icon('users')}${esc(S.audienceLabel(a.scopeId))}</span>${a.priority === 'important' ? `<span class="pill warn">${icon('alert')}Important</span>` : ''}<small>${relativeTime(a.at)}</small></div>
           <p class="post-body">${esc(a.text)}</p>
           <div class="post-foot">${mine ? `<span class="pill ${acked === reach && reach ? 'good' : ''}">${icon('eye')}${acked}/${reach} acknowledged</span><button class="btn sm ghost" type="button" data-action="post-delete" data-id="${a.id}">${icon('trash')}Delete</button>`
             : `<button class="btn sm ${read ? 'ghost' : 'soft'}" type="button" data-action="post-ack" data-id="${a.id}" aria-pressed="${read}">${icon('check')}${read ? 'Acknowledged' : 'Acknowledge'}</button>`}</div></div></article>`;
     }).join('');
-    return `${pageHead({ title: 'Updates', lede: 'Announcements reach the branch they are posted to. Acknowledge to let the author know you saw it.', actions: `
+    return `${pageHead({ title: 'Updates', actions: `
       <div class="seg" role="tablist" aria-label="Filter">${[['all', 'All', all.length], ['unread', 'Unread', unread], ['important', 'Important', all.filter(a => a.priority === 'important').length]].map(([id, l, n]) => `<button type="button" role="tab" data-action="feed-filter" data-filter="${id}" aria-selected="${f === id}">${l} <span class="count">${n}</span></button>`).join('')}</div>
-      ${unread ? `<button class="btn sm" type="button" data-action="post-ack-all">${icon('check')}Mark all read</button>` : ''}` })}
+      ${unread ? cbtn({ label: 'Mark all read', icon: 'check', action: 'post-ack-all' }) : ''}` })}
       <div class="stack" style="max-width:820px">${composer()}
         <section class="card">${posts || emptyState({ icon: 'updates', title: f === 'all' ? 'No announcements yet' : 'Nothing here', body: f === 'all' ? (S.can('updates.post') ? 'Write the first update above.' : 'Updates from your leaders will appear here.') : 'Try another filter.' })}</section></div>`;
   },

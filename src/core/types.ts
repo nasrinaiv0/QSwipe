@@ -1,3 +1,5 @@
+import type { DuckLook } from './ducks';
+
 export type Level = 0 | 1 | 2 | 3;
 export type Status = 'present' | 'absent';
 export type Commitment = 'confirmed' | 'risk' | 'unavailable';
@@ -103,6 +105,8 @@ export interface Workspace {
   invites: Invite[];
   trivia: TriviaQuestion[];
   gameEntries: string;
+  /** Duck race looks keyed by participant name (lower-case). */
+  ducks: Record<string, DuckLook>;
   link?: JoinLink;
 }
 
@@ -112,6 +116,7 @@ export interface Settings {
   density: 'compact' | 'comfortable';
   textSize: 'default' | 'large';
   motion: 'system' | 'full' | 'reduced';
+  glass: 'regular' | 'clear' | 'tinted';
   undoSeconds: 5 | 10 | 30;
   swipeSensitivity: 'gentle' | 'balanced' | 'quick';
   triviaTimer: 0 | 15 | 30;
