@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f6f4">
   <meta name="description" content="QSwipe — attendance, commitments, team operations and interactive games.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>QSwipe · Attendance & Team Play</title>
   <link rel="icon" type="image/svg+xml" href="./brand.svg">
   <link rel="stylesheet" href="./style.css">
@@ -20,7 +20,7 @@
       <div class="sidebar-bottom"><span class="demo-dot"></span> Local demo · no shared records</div>
     </aside>
     <div class="main-column">
-      <header class="topbar"><div class="mobile-brand"><img src="./brand.svg" width="32" height="32" alt=""><strong>QSwipe</strong></div><div class="topbar-context"><span class="eyebrow" id="context-label">WORKSPACE OVERVIEW</span><strong id="context-title">Today</strong></div><div class="top-controls"><label class="role-select"><span>View as</span><select id="role" aria-label="View as role"><option value="manager">Manager</option><option value="member">Member</option></select></label><span class="top-avatar" aria-label="Demo user">JD</span></div></header>
+      <header class="topbar"><div class="mobile-brand"><img src="./brand.svg" width="32" height="32" alt=""><strong>QSwipe</strong></div><div class="topbar-context"><span class="eyebrow" id="context-label">WORKSPACE OVERVIEW</span><strong id="context-title">Today</strong></div><div class="top-controls"><label class="role-select"><span>Demo role</span><select id="role" aria-label="Preview a demo identity"><option value="member">Member</option><option value="lead" selected>Level 1 · Leader</option><option value="operations">Level 2 · Operations</option><option value="director">Level 3 · Director</option></select></label><button id="profile-shortcut" class="top-avatar" aria-label="Open profile" type="button">JD</button></div></header>
       <main id="main" class="content" tabindex="-1"><noscript>Enable JavaScript to use the interactive QSwipe demo.</noscript></main>
       <footer class="page-footer">QSwipe preview · Sample people and local-only interactions · Not a production attendance system</footer>
     </div>
