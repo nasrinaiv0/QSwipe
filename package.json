@@ -1,0 +1,13 @@
+{
+  "name": "qswipe-ui-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-contained QSwipe demo — independent from the private hosted app",
+  "scripts": {
+    "dev": "node server.mjs",
+    "check": "node --check public/app.js && node --check public/lib.js && node --test",
+    "test": "node --test"
+  },
+  "engines": {"node": ">=20"}
+}
