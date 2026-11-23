@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+ <title>QSwipe · Staging identity verification</title>
+ <link rel="icon" type="image/svg+xml" href="/brand.svg">
+ <link rel="stylesheet" href="/staging/staging.css">
+ <script type="module" src="/staging/staging.js"></script>
+</head>
+<body>
+ <main class="shell">
+  <header><img src="/brand.svg" width="48" height="48" alt="QSwipe cube logo"><div><strong>QSwipe</strong><span>Secure access laboratory</span></div><mark>STAGING ONLY</mark></header>
+  <section class="intro"><p class="eyebrow">Verified identity · assigned scope</p><h1>Manager access, without role switching.</h1><p>This isolated preview uses separate staging accounts. The live QSwipe demo, production data, and existing games are unchanged.</p></section>
+  <section class="panel" id="setup-panel" aria-live="polite"><h2>Checking staging environment</h2><p>Configuration is off by default and can only be enabled in a Vercel preview.</p></section>
+  <section class="panel hidden" id="login-panel"><h2>Sign in with verified email</h2><p>Use an invited <strong>fictional test account</strong>. Session tokens are kept only in this tab's memory and expire after leaving the page.</p>
+   <form id="otp-request"><label>Email address<input id="email" type="email" autocomplete="email" inputmode="email" maxlength="254" required placeholder="test.user@example.com"></label><button type="submit">Send one-time code</button></form>
+   <form id="otp-verify" class="hidden"><label>One-time code<input id="code" autocomplete="one-time-code" inputmode="numeric" minlength="6" maxlength="12" required placeholder="Enter the emailed code"></label><button type="submit">Verify and open workspaces</button></form>
+   <p class="notice" id="login-status" role="status" aria-live="polite"></p>
+  </section>
+  <section class="panel hidden" id="workspace-panel"><div class="toolbar"><div><h2>Authorized workspaces</h2><p>Roster visibility comes from database grants—not the dropdown.</p></div><button type="button" class="secondary" id="logout">Sign out</button></div>
+   <label>Workspace<select id="workspace"></select></label><div id="grants" class="grants"></div>
+   <button type="button" id="load-roster">Load authorized roster</button><p id="roster-status" role="status" aria-live="polite"></p>
+   <div class="scroll"><table><thead><tr><th>Name</th><th>Position</th><th>Unit</th></tr></thead><tbody id="roster"></tbody></table></div>
+  </section>
+  <footer>Private test project required. No shared data, manager mutations or attendance approvals are enabled here. <a href="/">Return to the original demo</a></footer>
+ </main>
+</body>
+</html>

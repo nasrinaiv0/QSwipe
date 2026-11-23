@@ -23,6 +23,15 @@
 
 ## PR acceptance
 
-- `npm run check` (typecheck, unit tests, production build) passes at the branch head.
-- Browser smoke at desktop and mobile widths: create workspace, invite → join → confirm, check-in pass, swipe deck, reports, settings, games.
-- Reviewer signs off on the client-only limitations above.
+- `npm run check` (typecheck, unit tests including the staging `node --test` suite, production build) passes at the exact branch head.
+- No GitHub Actions failures or unresolved security review flags.
+- Browser smoke at desktop and mobile widths: create workspace, invite → join → confirm, check-in pass, swipe deck, reports, settings, wheel, duck race, flip card and trivia.
+- Reviewer signs off on the client-only limitations and backend gaps above as **not ready** rather than implying production acceptance.
+
+## Manager/profile feature acceptance
+- Confirm employee/manager access using authenticated identities on a backend, not *Preview as* or demo role selection.
+- Verify scoped branches across Business, School, Government and Custom workspaces.
+- Verify that simultaneous manager/employee attendance updates cannot race or overwrite each other.
+- Confirm leave and correction approvals create immutable audit events and notify the subject.
+- Ensure that uploaded profile images have access rules, retention limits, virus/type checks and deletion options.
+- Test RTL/long names, tab/screen-reader navigation and all supported mobile sizes.
