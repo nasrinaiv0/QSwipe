@@ -59,5 +59,11 @@ test('app loads, switches demo identities, renders manager and profile pages',as
  currentNav.find(x=>x.dataset.page==='attendance').click();
  assert.match(elt('#main').innerHTML,/Team Nova/);
  assert.doesNotMatch(elt('#main').innerHTML,/Customer Support Specialist · Team Orion/);
+ // Marking the only Nova card must not hide the short Undo opportunity.
+ elt('#mark-present').handlers.click();
+ assert.match(elt('#main').innerHTML,/All cards reviewed/);
+ assert.match(elt('#main').innerHTML,/id="undo-swipe"/);
+ elt('#undo-swipe').handlers.click();
+ assert.match(elt('#main').innerHTML,/Team Nova/);
  delete globalThis.document;delete globalThis.window;delete globalThis.localStorage;
 });
