@@ -165,26 +165,26 @@ create policy qs_stg_my_workspace on public.qs_stg_workspaces
   for select to authenticated using (
     status = 'active' and exists (
       select 1 from public.qs_stg_memberships m
-      where m.workspace_id = id and m.user_id = (select auth.uid())
+      where m.workspace_id = qs_stg_workspaces.id and m.user_id = (select auth.uid())
     )
   );
 
 create policy qs_stg_my_organization on public.qs_stg_organizations
   for select to authenticated using (
     exists (select 1 from public.qs_stg_workspaces w
-      where w.organization_id = id)
+      where w.organization_id = qs_stg_organizations.id)
   );
 
 create policy qs_stg_my_site on public.qs_stg_sites
   for select to authenticated using (
     exists (select 1 from public.qs_stg_workspaces w
-      where w.site_id = id and w.organization_id = organization_id)
+      where w.site_id = qs_stg_sites.id and w.organization_id = qs_stg_sites.organization_id)
   );
 
 create policy qs_stg_my_units on public.qs_stg_units
   for select to authenticated using (
     exists (select 1 from public.qs_stg_workspaces w
-      where w.id = workspace_id and w.status = 'active')
+      where w.id = qs_stg_units.workspace_id and w.status = 'active')
   );
 
 create policy qs_stg_own_profile on public.qs_stg_profiles
