@@ -25,3 +25,10 @@ For each real staging JWT, query `qs_stg_memberships`, `qs_stg_role_assignments`
 Use `QSWIPE_STAGING_INTEGRATION=1`, `QSWIPE_STAGING_TEST_ISOLATED=YES`, and temporary staging-only environment variables documented in `test/staging-integration.test.js` to run read-only live tests. Do not run this against MOVO, NasrinAI, or production.
 
 The current staging UI intentionally omits attendance/approval writes; the security plan's conflict, leave, audit and idempotency checks must be completed in a future separate P3/P4 PR before real attendance use.
+
+## 2026-11-23 review — correlated RLS column qualification
+
+- Static review found ambiguous outer-column references in workspace, organization, site, and unit SELECT policies. In nested queries, an unqualified `id` can bind to the inner table rather than the intended protected row.
+- The migration file qualifies the outer references and adds a regression contract test. This addresses a **static-source defect only**.
+- This migration has **not** been run. Do not infer SQL correctness, live tenant isolation, or revocation safety from static tests.
+- Re-run cross-tenant, cross-site, cross-unit, revoked-membership, and expired-role tests on a separate QSwipe staging database before any merge.
