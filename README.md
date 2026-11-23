@@ -48,6 +48,12 @@ tests/         Vitest unit tests for everything in src/core
 
 Runtime dependencies: [`uqr`](https://github.com/unjs/uqr) (QR encoding, MIT) and [`jsqr`](https://github.com/cozmo/jsQR) (QR decoding fallback, Apache-2.0, loaded only when the browser lacks `BarcodeDetector`).
 
+## Staging backend (separate, off by default)
+
+The repository also contains a review-only staging identity and RBAC foundation merged in PR #4. It is independent of the app above:
+`api/staging/*` (Vercel functions), `lib/staging/security.js`, the standalone `/staging/` page in `public/staging/`, and an **unapplied** Supabase migration in `supabase/migrations/`.
+Every endpoint returns `503 STAGING_DISABLED` unless it runs in a Vercel preview with `QSWIPE_STAGING_ENABLED=true`. See [docs/STAGING_AUTH_RBAC.md](docs/STAGING_AUTH_RBAC.md), the [acceptance checklist](docs/STAGING_ACCEPTANCE_CHECKLIST.md) and the [fixture & RBAC test plan](docs/STAGING_FIXTURE_AND_RBAC_TEST_PLAN.md). Its tests run with `node --test "test/*.test.js"` as part of `npm test`.
+
 ## Before real-world use
 
 QSwipe stores personal data (names, attendance) in browser storage, and its QR handshake has no central authority. Read [docs/RELEASE_GATES.md](docs/RELEASE_GATES.md) before using it for real people.
