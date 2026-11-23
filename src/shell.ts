@@ -76,8 +76,9 @@ export function applyAppearance() {
   root.dataset.accent = s.accent;
   s.density === 'comfortable' ? (root.dataset.density = 'comfortable') : delete root.dataset.density;
   s.textSize === 'large' ? (root.dataset.text = 'large') : delete root.dataset.text;
+  s.glass !== 'regular' ? (root.dataset.glass = s.glass) : delete root.dataset.glass;
   s.motion === 'reduced' || (s.motion === 'system' && mqMotion.matches) ? (root.dataset.motion = 'reduce') : delete root.dataset.motion;
-  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#0e1210' : '#f4f5f1';
+  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#000000' : '#f2f2f7';
 }
 mqDark.addEventListener('change', () => { applyAppearance(); if (S.hasWorkspace()) renderShell(); });
 mqMotion.addEventListener('change', applyAppearance);

@@ -12,7 +12,7 @@ const SECTIONS: [string, string, string, string?][] = [
   ['access', 'Access', 'shield'], ['data', 'Data', 'database'], ['about', 'About', 'keyboard'],
 ];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const ACCENTS: Record<Settings['accent'], string> = { green: '#17714f', teal: '#0e7470', blue: '#2860c4', violet: '#6448cf', rose: '#bf3a63', amber: '#a35f07' };
+const ACCENTS: Record<Settings['accent'], string> = { green: '#1a7f37', teal: '#007a87', blue: '#0a6cdc', violet: '#5856d6', rose: '#d1264f', amber: '#b45400' };
 
 const setting = (label: string, sub: string, control: string, stacked = false) =>
   `<div class="setting ${stacked ? 'stacked' : ''}"><div class="s-label"><strong>${esc(label)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div><div>${control}</div></div>`;
@@ -27,6 +27,7 @@ function appearance() {
   return `<section class="card"><div class="card-head"><h2>${icon('palette')}Appearance</h2><span class="pill">This device</span></div>
     ${setting('Theme', '', `<div class="theme-cards">${(['system', 'light', 'dark'] as const).map(t => `<button class="theme-card" type="button" data-action="set" data-key="theme" data-value="${t}" aria-pressed="${s.theme === t}"><span class="preview ${t}"><i></i><i></i></span><span>${icon(t === 'system' ? 'monitor' : t === 'light' ? 'sun' : 'moon')}${t[0]!.toUpperCase() + t.slice(1)}</span></button>`).join('')}</div>`, true)}
     ${setting('Accent', '', `<div class="swatches">${(Object.keys(ACCENTS) as Settings['accent'][]).map(a => `<button class="swatch" type="button" style="background:${ACCENTS[a]}" data-action="set" data-key="accent" data-value="${a}" aria-pressed="${s.accent === a}" aria-label="${a}">${icon('check')}</button>`).join('')}</div>`)}
+    ${setting('Glass', 'Clear shows more behind bars and sheets.', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
     ${setting('Density', '', seg('density', [['compact', 'Compact'], ['comfortable', 'Comfortable']]))}
     ${setting('Text size', '', seg('textSize', [['default', 'Default'], ['large', 'Large']]))}
     ${setting('Motion', 'Reduced turns off animations.', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;

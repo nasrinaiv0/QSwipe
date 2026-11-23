@@ -15,6 +15,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
   density: ['compact', 'comfortable'],
   textSize: ['default', 'large'],
   motion: ['system', 'full', 'reduced'],
+  glass: ['regular', 'clear', 'tinted'],
   undoSeconds: [5, 10, 30],
   swipeSensitivity: ['gentle', 'balanced', 'quick'],
   triviaTimer: [0, 15, 30],
@@ -24,7 +25,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system',
+  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system', glass: 'regular',
   undoSeconds: 10, swipeSensitivity: 'balanced', triviaTimer: 0, sound: false, haptics: true, confirmAbsent: false,
 };
 

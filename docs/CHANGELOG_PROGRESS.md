@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0: iOS 27-style design
+
+- **Liquid Glass on the navigation layer only.** The sidebar, top bar, tab bar, sheets, toasts, tooltips and floating controls use a glass material: tinted body, darkened rim, bright specular edge and soft shadow, as in iOS 27's refined Liquid Glass. Content stays on solid grouped surfaces so text remains easy to read. Only layers that content scrolls under use a live blur.
+- **Glass setting.** Settings → Appearance → Glass offers Clear, Regular and Tinted, mirroring iOS 27's intensity control. *Reduce transparency* and *Increase contrast* system settings make glass opaque automatically.
+- **Navigation.** Floating capsule tab bar on phones with a lens-style selected tab and a soft scroll-edge fade. The top bar is clear at rest; once content scrolls under it, it becomes a uniform glass bar showing the page title. The desktop sidebar floats as a rounded glass panel with accent-tinted icons.
+- **Large titles and system type.** Pages open with iOS-style large titles. The font stack prefers SF Pro (with SF Pro Rounded for numbers) and falls back to the platform UI font.
+- **Controls.** Capsule buttons (filled, tinted, gray, plain) with a quick press and spring release; capsule segmented controls with a raised thumb; iOS switches whose knob stretches while pressed; filled text fields and capsule search fields; circular avatars; red notification badges.
+- **Lists and surfaces.** iOS grouped palette (light `#f2f2f7`, dark true black with `#1c1c1e` cards), borderless rounded cards, separators inset to the text, settings sections with coloured glyph tiles, sheets that float inset from the screen edges with large corners.
+- **Colour.** Accents use iOS system hues, darkened where needed so white text keeps at least 4.5:1 contrast. Dark mode uses the bright iOS green, teal and orange with dark text. Chart colours keep their colour-vision-safe values.
+
 ## 0.5.0: Minimalist UI and mobile fixes
 
 - **One size scale.** Buttons, inputs, tabs and chips share three heights (30/36/44px; 34/40/46px on touch screens) with consistent padding and radius. Buttons no longer glow; cards are flat with hairline borders; backgrounds are plain.

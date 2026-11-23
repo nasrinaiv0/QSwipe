@@ -116,6 +116,7 @@ export interface Settings {
   density: 'compact' | 'comfortable';
   textSize: 'default' | 'large';
   motion: 'system' | 'full' | 'reduced';
+  glass: 'regular' | 'clear' | 'tinted';
   undoSeconds: 5 | 10 | 30;
   swipeSensitivity: 'gentle' | 'balanced' | 'quick';
   triviaTimer: 0 | 15 | 30;
