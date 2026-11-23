@@ -25,3 +25,4 @@
 - Browser navigation to protected Vercel preview remains unavailable in isolated Chromium; inline test harness rendered the exact source at 320/390/1280px and verified Profile, manager controls, and no page overflow, but does NOT establish hosted preview acceptance.
 - Vercel Sandbox creation returned `402 payment_required`; Vercel CLI fallback not installed in runtime.
 - **Release gate remains open:** authenticated backend/RBAC is absent (demo roles only), browser preview acceptance and physical iOS/Android tests remain unverified. Do not merge until required acceptance gates pass.
+- Follow-up QA: after the final unresolved team member was marked, the empty queue previously hid Undo. The completed-queue state now preserves the short-lived Undo action for that date.
