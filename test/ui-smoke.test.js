@@ -54,5 +54,10 @@ test('app loads, switches demo identities, renders manager and profile pages',as
  assert.match(elt('#main').innerHTML,/View audit activity/);
  role.handlers.change({target:{value:'director'}});
  assert.match(elt('#main').innerHTML,/id="target-form"/);
+ // Level 2 selects Nova; attendance must show the selected team, not Orion.
+ elt('#manager-team-filter').handlers.change({target:{value:'Nova'}});
+ currentNav.find(x=>x.dataset.page==='attendance').click();
+ assert.match(elt('#main').innerHTML,/Team Nova/);
+ assert.doesNotMatch(elt('#main').innerHTML,/Customer Support Specialist · Team Orion/);
  delete globalThis.document;delete globalThis.window;delete globalThis.localStorage;
 });
