@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0: Duck race water and outfits
+
+- **Water.** The race now runs on a canvas pond: layered flowing ripples, a drifting light sheen, twinkling glints, V-shaped wakes, expanding rings, start and finish splashes, red/white lane-rope floats and a checkered finish band. Light and dark themes. Static layers are cached, and quality adapts automatically on slow devices.
+- **Ducks and costumes.** Original SVG ducks in 10 colours with 11 hats, 6 eyewear and 5 neckwear options (plus none). Tap a duck on the dock to dress it up, use *Save & next* to work through the line-up, or *Surprise outfits*. Looks are saved per participant name in the workspace (validated on load and import, capped at 200). Unsaved racers get distinct default colours.
+- **Race flow.** 3-2-1-GO countdown, ducks bob and lean into their speed, live positions, a podium with each winner's duck, and a ★ “cheer for” pick that reports where your duck finished. Reduced motion skips straight to the result.
+
 ## 0.3.0: TypeScript rebuild, hierarchy access, settings, QR onboarding
 
 **Breaking.** Storage moved to `qswipe-v3`; data from the 0.1 demo is not migrated (it was sample data). The `public/*.js` demo and `server.mjs` are removed in favour of Vite.

@@ -411,6 +411,6 @@ export function createWorkspace(a: { name: string; preset: Preset; ownerName: st
   const owner = newPerson({ name: a.ownerName, level: a.ownerLevel, parentId: null, branch: a.ownerBranch ?? '', position: a.ownerPosition ?? config.titles[a.ownerLevel], joined: 'owner' });
   return {
     id: uid(12), createdAt: Date.now(), config, ownerId: owner.id, meId: owner.id, people: [owner], policy: defaultPolicy(),
-    attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [], invites: [], trivia: [], gameEntries: '',
+    attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [], invites: [], trivia: [], gameEntries: '', ducks: {},
   };
 }

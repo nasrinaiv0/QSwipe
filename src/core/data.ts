@@ -1,4 +1,5 @@
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
+import { sanitizeDucks } from './ducks';
 import { sanitizeQuestion } from './games';
 import { cleanText, COMMITMENTS, configFromPreset, indexOrg, ancestors, isIsoDate, LEVELS, sanitizeAnnouncementText, sanitizeConfig, sanitizePolicy, statusOf } from './model';
 import type { AppData, AttendanceRecord, AuditEntry, Commitment, CommitmentRecord, Invite, Level, Person, Settings, Workspace } from './types';
@@ -143,6 +144,7 @@ export function sanitizeWorkspace(input: unknown): Workspace | null {
     ownerId, meId, people, policy: sanitizePolicy(o.policy), attendance, commitments, announcements, acked, audit, invites,
     trivia: arr(o.trivia).slice(0, 500).map(sanitizeQuestion).filter((q): q is NonNullable<typeof q> => !!q),
     gameEntries: typeof o.gameEntries === 'string' ? o.gameEntries.slice(0, 2000) : '',
+    ducks: sanitizeDucks(o.ducks),
     ...(ID_RE.test(String(link.inviteId)) && TOKEN_RE.test(String(link.token)) ? { link: { inviteId: String(link.inviteId), token: String(link.token), joinedAt: num(link.joinedAt) } } : {}),
   };
 }

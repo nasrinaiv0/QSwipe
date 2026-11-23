@@ -1,6 +1,7 @@
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
 import { emptyAppData, sanitizeAppData, sanitizeSettings, STORAGE_KEY } from '../core/data';
+import { duckKey, MAX_SAVED_LOOKS, sanitizeLook, type DuckLook } from '../core/ducks';
 import { sanitizeQuestion } from '../core/games';
 import * as M from '../core/model';
 import type { AppData, AuditEntry, Commitment, Invite, Level, Org, Person, Settings, Status, TriviaQuestion, Workspace, WorkspaceConfig } from '../core/types';
@@ -421,6 +422,18 @@ export function resetPolicy() { if (can('settings.access')) { ws().policy = M.de
 export function updateConfig(patch: Partial<WorkspaceConfig>): boolean {
   if (!can('settings.workspace')) return false;
   ws().config = M.sanitizeConfig({ ...ws().config, ...patch }, ws().config);
+  persist();
+  return true;
+}
+
+export function setDuckLook(name: string, look: DuckLook): boolean {
+  const clean = sanitizeLook(look), key = duckKey(name);
+  if (!clean || !key) return false;
+  const ducks = ws().ducks;
+  delete ducks[key];
+  ducks[key] = clean;
+  const keys = Object.keys(ducks);
+  for (const k of keys.slice(0, Math.max(0, keys.length - MAX_SAVED_LOOKS))) delete ducks[k];
   persist();
   return true;
 }
