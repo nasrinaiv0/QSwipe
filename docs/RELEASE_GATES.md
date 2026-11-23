@@ -22,3 +22,11 @@
 - No GitHub Actions failures or unresolved security review flags.
 - Browser smoke runs at desktop and mobile widths, including wheel, duck race, flip card, swipe, report and export.
 - Reviewer signs off on backend gaps as **not ready** rather than implying production acceptance.
+
+## Manager/profile feature acceptance
+- Confirm employee/manager access using authenticated identities on a backend, not demo role selection.
+- Verify scoped teams across BPO, School, Government and Custom workspaces.
+- Verify that simultaneous manager/employee attendance updates cannot race or overwrite each other.
+- Confirm leave and correction approvals create immutable audit events and notify the subject.
+- Ensure that uploaded profile images have access rules, retention limits, virus/type checks and deletion options.
+- Test RTL/long names, tab/screen-reader navigation and all supported mobile sizes.
