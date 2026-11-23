@@ -17,3 +17,11 @@
 6. Ran `npm run check`: 16 automated tests passed, including a DOM-less render smoke test and multi-industry team access policy.
 7. Physical browser navigation was blocked with ERR_BLOCKED_BY_ADMINISTRATOR in the isolated test sandbox; **visual verification, real-device swipe and deployment preview remain unverified**. Do not mark ready for production or merge without completing the release gates.
 8. Changes are prepared on an isolated feature branch; no production database, private site or legal settings were changed.
+
+## 2026-11-23 — PR #3 exact-head review remediation
+- Exact head `38497e761f6b6c98dcc4097288fafd16aa7b0198` passed GitHub Actions and 16/16 domain/UI smoke tests. Vercel preview `dpl_76QaEAWh6YMbm1gc8XwqndFeGKi6` was READY and source-matched.
+- Reproduced a functional inconsistency: Level 2 selected Nova in Manager but the attendance swipe queue still displayed Orion. Fixed by applying the manager's existing authorized team filter consistently to the queue and the write target.
+- Prevented Undo across attendance dates and ignored Skip for a member's self-check-in. Added the manager-filter regression to the DOM-less UI test.
+- Browser navigation to protected Vercel preview remains unavailable in isolated Chromium; inline test harness rendered the exact source at 320/390/1280px and verified Profile, manager controls, and no page overflow, but does NOT establish hosted preview acceptance.
+- Vercel Sandbox creation returned `402 payment_required`; Vercel CLI fallback not installed in runtime.
+- **Release gate remains open:** authenticated backend/RBAC is absent (demo roles only), browser preview acceptance and physical iOS/Android tests remain unverified. Do not merge until required acceptance gates pass.
