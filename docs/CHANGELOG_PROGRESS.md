@@ -8,6 +8,7 @@
 - **Large titles and system type.** Pages open with iOS-style large titles. The font stack prefers SF Pro (with SF Pro Rounded for numbers) and falls back to the platform UI font.
 - **Controls.** Capsule buttons (filled, tinted, gray, plain) with a quick press and spring release; capsule segmented controls with a raised thumb; iOS switches whose knob stretches while pressed; filled text fields and capsule search fields; circular avatars; red notification badges.
 - **Lists and surfaces.** iOS grouped palette (light `#f2f2f7`, dark true black with `#1c1c1e` cards), borderless rounded cards, separators inset to the text, settings sections with coloured glyph tiles, sheets that float inset from the screen edges with large corners.
+- **Interactions.** Segmented controls and the tab bar slide their selection to the new choice with a spring. On phones, sheets follow your finger when dragged by the grabber or header: pull down far or fast to close, otherwise they spring back. Keyboard-shortcut hints are hidden on touch screens.
 - **Colour.** Accents use iOS system hues, darkened where needed so white text keeps at least 4.5:1 contrast. Dark mode uses the bright iOS green, teal and orange with dark text. Chart colours keep their colour-vision-safe values.
 
 ## 0.5.0: Minimalist UI and mobile fixes
