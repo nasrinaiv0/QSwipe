@@ -39,17 +39,17 @@
 
 ## 3. Deterministic fictional fixture blueprint
 
-Create **2 organizations, 4 sites, 2 workspaces, 5 units, 9 active user identities, 1 revoked identity and an anonymous caller**. Use nonidentifying display names such as `Test Member Orion 01`. The actual auth email addresses must be tester-controlled and must not appear in test logs.
+Create **2 organizations, 4 sites, 4 workspaces, 5 units, 9 active user identities, 1 revoked identity and an anonymous caller**. Use nonidentifying display names such as `Test Member Orion 01`. The actual auth email addresses must be tester-controlled and must not appear in test logs.
 
 | Org | Industry | Site | Workspace | Unit |
 | --- | --- | --- | --- | --- |
-| A — Vertex Fictional Support | BPO | A-Site-01 | A-Workspace | **A-Orion** |
-| A | BPO | A-Site-01 | A-Workspace | **A-Nova** |
-| A | BPO | A-Site-02 | A-Workspace | **A-NightOps** |
-| B — Civic Fictional Lab | Government | B-Site-01 | B-Workspace | **B-Records** |
-| B | Government | B-Site-02 | B-Workspace | **B-Services** |
+| A — Vertex Fictional Support | BPO | A-Site-01 | A-W1 | **A-Orion** |
+| A | BPO | A-Site-01 | A-W1 | **A-Nova** |
+| A | BPO | A-Site-02 | A-W2 | **A-NightOps** |
+| B — Civic Fictional Lab | Government | B-Site-01 | B-W1 | **B-Records** |
+| B | Government | B-Site-02 | B-W2 | **B-Services** |
 
-**Schema note:** `qs_stg_workspaces.site_id` allows only one site per workspace. The A- and B-workspace rows above therefore **cannot** directly cover two sites each. To maintain the intended four-site/three-unit coverage without contradicting the schema, create **one workspace per site** (four total): A-Site-01 → A-W1 (Orion, Nova); A-Site-02 → A-W2 (NightOps); B-Site-01 → B-W1 (Records); B-Site-02 → B-W2 (Services). All expected results below use this **corrected four-workspace shape**. Grant Level 2/3 explicit memberships and unit roles in each workspace they need to access; never infer cross-workspace permission from a title.
+**Schema constraint:** `qs_stg_workspaces.site_id` assigns each workspace to one site, so this fixture uses **one workspace per site**. A-W1 has Orion/Nova, A-W2 has NightOps, B-W1 has Records, and B-W2 has Services. Grant Level 2/3 managers explicit memberships and unit roles in each workspace they need to access; never infer cross-workspace permission from a title.
 
 | Identity label | Tenant membership(s) | Explicit allowed unit(s) | Negative scope |
 | --- | --- | --- | --- |
