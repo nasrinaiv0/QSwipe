@@ -6,7 +6,9 @@ Attendance, commitments, manager verification, and playful team engagement in on
 
 **This repository is an independent browser demo, not the source of the existing private QSwipe site.** The hosted site was created through a separate builder; its source and database have not been synchronized into this GitHub repository. Merging code here **does not deploy or change that hosted site**.
 
-The demo ships: four industry templates, portrait attendance swipe cards (left absent / right present), manager unresolved-roster queue, Skip/Undo, future-shift commitments, staffing projection, team hierarchy, announcements, attendance reports and CSV, plus Spin the Wheel, Duck Race, logo-backed Pick a Card, and Trivia. Everything is local to one browser session/storage. **Do not enter real employee or student data.** No real login, backend authorization, shared attendance, or protected data storage is implemented in this demo.
+The demo ships: editable sample profiles and session-only photo previews, three manager tiers with scoped review and approvals, four industry templates, portrait attendance swipe cards (left absent / right present), manager unresolved-roster queue, Skip/Undo, future-shift commitments, staffing projection, team hierarchy, announcements, attendance reports and CSV, plus Spin the Wheel, Duck Race, logo-backed Pick a Card, and Trivia. Everything is local to one browser session/storage. **Do not enter real employee or student data.** No real login, backend authorization, shared attendance, or protected data storage is implemented in this demo.
+
+See [Profile and Manager Access](docs/PROFILE_MANAGER_ACCESS.md) for the exact access matrix and acceptance walkthrough.
 
 ## Run locally
 
