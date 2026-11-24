@@ -11,3 +11,5 @@ Fix existing play lifecycle, duplicate/truncated entries and stale decks; improv
 Remove an unused import under strict TypeScript; exercise repeat daily scoring and workspace isolation in the built browser app. Score rewards are non-redeemable cosmetic recognition; no remote game room or cross-device score authority in this PR.
 
 CI reported missing `$$` selector after replacement-string dollar escaping; correct the import using literal concatenation and rerun.
+
+Browser run timed out waiting for the wheel spin button: fictional roster was injected into localStorage while the app still held the old in-memory workspace, so the pagehide flush can overwrite it. Dispatch the same storage-change event used by the app before reloading, assert the fixture survives, then run all games again. This is a fixture-only change.
