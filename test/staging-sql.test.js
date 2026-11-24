@@ -48,3 +48,12 @@ test('correlated RLS policies qualify OUTER row columns to prevent inner id capt
   assert.match(sql,/w\.site_id = qs_stg_sites\.id and w\.organization_id = qs_stg_sites\.organization_id/i);
   assert.doesNotMatch(sql,/m\.workspace_id = id\b|w\.organization_id = id\b|w\.site_id = id\b|w\.organization_id = organization_id\b|w\.id = workspace_id\b/i);
 });
+
+ test('manager grants and manager roster branch require AAL2 and active unit',()=>{
+  const policy=name=>sql.match(new RegExp('create policy '+name+'\\b[\\s\\S]*?;','i'))?.[0]??'';
+  for(const name of ['qs_stg_own_active_role_grants','qs_stg_scoped_roster']){
+    const p=policy(name);assert.match(p,/auth\.jwt\(\)->>'aal'\) = 'aal2'/);
+    assert.match(p,/u\.status = 'active'/);assert.match(p,/u\.workspace_id = qs_stg_/);
+  }
+  assert.match(policy('qs_stg_scoped_roster'),/or \(\(select auth\.jwt\(\)->>'aal'\) = 'aal2' and exists/);
+});
