@@ -69,6 +69,20 @@ jobs:
           export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
           export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/consolidation.mjs
+      - name: Shared attendance and unified passport browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/shared-attendance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-shared-attendance-previews
+          path: shared-attendance-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
