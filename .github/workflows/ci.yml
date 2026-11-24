@@ -30,15 +30,38 @@ jobs:
           node-version: '22'
       - run: npm ci
       - run: npm run build
-      - run: npm install --prefix "$RUNNER_TEMP/qswipe-browser" --no-audit --no-fund playwright@1.56.1
-      - name: Test and capture fictional team play
+      - name: Install pinned browser harness
+        id: browser_setup
+        run: npm install --prefix "$RUNNER_TEMP/qswipe-browser" --no-audit --no-fund playwright@1.56.1
+      - name: Team Play browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
         run: |
           export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
           export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/team-play.mjs
+      - name: Live rooms and memory synchronization browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/live-rooms.mjs
+      - name: Player collection browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/player-collection.mjs
+      - name: Seasonal games browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/seasonal-games.mjs
+      - name: Creative games and animation performance browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/creative-games.mjs
       - uses: actions/upload-artifact@v4
         if: always()
