@@ -52,3 +52,33 @@ jobs:
             docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
           done
           bash test/postgres/p4_concurrency.sh
+
+          for file in supabase/staging/p5_workspace.sql test/postgres/p5_assertions.sql; do
+            docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
+          done
+
+  staging-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated pinned browser test dependency
+        run: npm install --prefix "$RUNNER_TEMP/qswipe-browser" --no-audit --no-fund playwright@1.56.1
+      - name: Run staging browser regression and render fictional previews
+        run: |
+          set -euo pipefail
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/p5-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-p5-rendered-previews
+          path: p5-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
