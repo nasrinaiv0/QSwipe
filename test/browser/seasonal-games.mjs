@@ -15,6 +15,7 @@ try{
  const [host,guest]=pages;
  async function profile(p,name,invite=''){
   await p.goto(origin+'/rooms/'+(invite?'#join='+invite:''));await p.getByText('Staging room service',{exact:true}).waitFor();
+  await p.locator('#profile-entry > summary').click();
   await p.locator('#profile-create input[name=name]').fill(name);await p.locator('#profile-create input[name=remember]').check();await p.getByRole('button',{name:'Create player profile'}).click();await p.locator('#profile-content .passport-head h2').filter({hasText:name}).waitFor();
  }
  await profile(host,'Alex');await host.locator('#profile-content .zodiac-details summary').click();assert.equal(await host.locator('.zodiac-details .collectible:visible').count(),12);
@@ -30,7 +31,7 @@ try{
  assert.match(await host.locator('#season-ranks').textContent(),/30 pts/);assert.match(await guest.locator('#season-ranks').textContent(),/20 pts/);
  await host.locator('#profile-room > summary').click();assert.match(await host.locator('#profile-room .passport-head').textContent(),/55 lifetime points/);
  await host.screenshot({path:'seasonal-previews/06-season-results-passport.png',fullPage:true,animations:'disabled'});
- await host.getByRole('button',{name:'Close room',exact:true}).click();await host.reload();await host.locator('#profile-content .passport-head').waitFor();
+ await host.getByRole('button',{name:'Close room',exact:true}).click();await host.reload();await host.locator('#profile-entry > summary').click();await host.locator('#profile-content .passport-head').waitFor();
  await host.locator('#profile-content .zodiac-details summary').click();await host.locator('#profile-content .collectible').filter({hasText:'Aries'}).getByRole('button',{name:'Equip'}).click();
  await host.locator('#profile-content .collectible').filter({hasText:'Aries'}).getByRole('button',{name:'Selected'}).waitFor();
  await host.locator('#profile-content').getByRole('button',{name:'Scarf',exact:true}).click();await host.getByText('Scarf ✓',{exact:true}).waitFor();
