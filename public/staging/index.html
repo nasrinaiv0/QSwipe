@@ -19,6 +19,14 @@
    <p class="notice" id="login-status" role="status" aria-live="polite"></p>
   </section>
   <section class="panel hidden" id="workspace-panel"><div class="toolbar"><div><h2>Authorized workspaces</h2><p>Roster visibility comes from database grants—not the dropdown.</p></div><button type="button" class="secondary" id="logout">Sign out</button></div>
+   <section class="mfa-box" aria-labelledby="mfa-heading">
+    <h2 id="mfa-heading">Authenticator verification</h2><p>Manager access requires a second factor. Your own eligible roster entry remains available without manager permissions.</p>
+    <p id="mfa-status" role="status" aria-live="polite">Check your authenticator setup.</p>
+    <div class="mfa-actions"><button type="button" class="secondary" id="mfa-refresh">Check authenticators</button><button type="button" id="mfa-enroll" class="hidden">Set up authenticator</button></div>
+    <div id="mfa-secret-box" class="hidden"><p>Add a time-based account in your authenticator using this manual key. Do not share or screenshot it.</p><code id="mfa-secret"></code></div>
+    <form id="mfa-verify" class="hidden"><label>Authenticator<select id="mfa-factor"></select></label><label>Six-digit code<input id="mfa-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label><button type="submit">Verify authenticator</button></form>
+    <p>Lost your authenticator? Sign out and contact the authorized staging administrator for identity-verified recovery. There is no bypass.</p>
+   </section>
    <label>Workspace<select id="workspace"></select></label><div id="grants" class="grants"></div>
    <button type="button" id="load-roster">Load authorized roster</button><p id="roster-status" role="status" aria-live="polite"></p>
    <div class="scroll"><table><thead><tr><th>Name</th><th>Position</th><th>Unit</th></tr></thead><tbody id="roster"></tbody></table></div>
