@@ -4,20 +4,20 @@ import { stagingConfiguration, SecurityError, validUuid, verifiedUser, getBearer
 import config from '../api/staging/config.js';
 import me from '../api/staging/me.js';
 import roster from '../api/staging/roster.js';
-const env={VERCEL_ENV:'preview',QSWIPE_STAGING_ENABLED:'true',QSWIPE_STAGING_SUPABASE_URL:'https://fictional-staging.supabase.co',QSWIPE_STAGING_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_fakekey1234567890123456789'};
+const env={VERCEL_ENV:'preview',QSWIPE_STAGING_ENABLED:'true',QSWIPE_STAGING_PROJECT_REF:'aaaaaaaaaaaaaaaaaaaa',QSWIPE_PRODUCTION_PROJECT_REF:'bbbbbbbbbbbbbbbbbbbb',QSWIPE_STAGING_SUPABASE_URL:'https://aaaaaaaaaaaaaaaaaaaa.supabase.co',QSWIPE_STAGING_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_fakekey1234567890123456789'};
 const userId='11111111-1111-4111-8111-111111111111',workspace='22222222-2222-4222-8222-222222222222',membership='33333333-3333-4333-8333-333333333333';
 const token='a'.repeat(80);
 function response(){return {statusCode:200,headers:{},setHeader(key,val){this.headers[key]=val;},end(data){this.body=JSON.parse(data);}};}
-const original=Object.fromEntries(['VERCEL_ENV','QSWIPE_STAGING_ENABLED','QSWIPE_STAGING_SUPABASE_URL','QSWIPE_STAGING_SUPABASE_PUBLISHABLE_KEY','NODE_ENV','QSWIPE_STAGING_LOCAL_TEST'].map(x=>[x,process.env[x]]));
+const original=Object.fromEntries(['VERCEL_ENV','QSWIPE_STAGING_ENABLED','QSWIPE_STAGING_SUPABASE_URL','QSWIPE_STAGING_SUPABASE_PUBLISHABLE_KEY','NODE_ENV','QSWIPE_STAGING_LOCAL_TEST','QSWIPE_STAGING_PROJECT_REF','QSWIPE_PRODUCTION_PROJECT_REF'].map(x=>[x,process.env[x]]));
 function patchEnv(x){for(const key of Object.keys(original))delete process.env[key];Object.assign(process.env,x);}
 function restore(){for(const key of Object.keys(original)){if(original[key]!==undefined)process.env[key]=original[key];else delete process.env[key];}}
-function mockFetch(rows={}){const calls=[];return {calls,fetch:async (url,opt)=>{calls.push({url:String(url),authorization:opt.headers.Authorization});
+function mockFetch(rows={}){const calls=[];return {calls,fetch:async (url,opt)=>{calls.push({url:String(url),authorization:opt.headers.Authorization,redirect:opt.redirect,cache:opt.cache});
   let value={};const u=String(url);
   if(u.endsWith('/auth/v1/user'))value={id:userId,role:'authenticated',email_confirmed_at:'2026-01-01T00:00:00Z',is_anonymous:false};
   else if(u.includes('qs_stg_memberships'))value=rows.memberships??[{id:membership,workspace_id:workspace,status:'active',starts_at:'2026-01-01T00:00:00Z',ends_at:null}];
   else if(u.includes('qs_stg_workspaces'))value=rows.workspaces??[{id:workspace,status:'active'}];
   else if(u.includes('qs_stg_role_assignments'))value=rows.grants??[{membership_id:membership,scope_unit_id:'44444444-4444-4444-8444-444444444444',role:'level_1'}];
-  else if(u.includes('qs_stg_roster_assignments'))value=rows.roster??[{id:'55555555-5555-4555-8555-555555555555',workspace_id:workspace,unit_id:'44444444-4444-4444-8444-444444444444',display_name_snapshot:'Fictional Member',position_snapshot:'Agent'}];
+  else if(u.includes('qs_stg_roster_assignments'))value=rows.roster??[{id:'55555555-5555-4555-8555-555555555555',workspace_id:workspace,unit_id:'44444444-4444-4444-8444-444444444444',display_name_snapshot:'Fictional Member',position_snapshot:'Agent',email:'private@example.invalid'}];
   return {ok:true,status:200,json:async()=>value};}};}
 const getReq=(path,auth=`Bearer ${token}`)=>({method:'GET',url:path,headers:{authorization:auth}});
 
@@ -86,6 +86,19 @@ test('roster uses RLS-enforced bearer and caps rows without exposing contact det
   patchEnv({...env});const old=globalThis.fetch;const m=mockFetch();globalThis.fetch=m.fetch;
   try{const r=response();await roster(getReq(`/api/staging/roster?workspace_id=${workspace}`),r);
     assert.equal(r.statusCode,200);assert.equal(r.body.rows.length,1);
+    assert.equal(Object.hasOwn(r.body.rows[0],'email'),false);
+    assert.ok(m.calls.every(c=>c.redirect==='error' && c.cache==='no-store'));
     assert.ok(m.calls.some(x=>x.url.includes('qs_stg_roster_assignments') && x.url.includes('limit=100')));
   }finally{globalThis.fetch=old;restore();}
+});
+
+ test('independent stage reference is mandatory, distinct and exact',()=>{
+  for(const overrides of [
+    {QSWIPE_STAGING_PROJECT_REF:undefined}, {QSWIPE_PRODUCTION_PROJECT_REF:undefined},
+    {QSWIPE_PRODUCTION_PROJECT_REF:env.QSWIPE_STAGING_PROJECT_REF},
+    {QSWIPE_STAGING_SUPABASE_URL:'https://bbbbbbbbbbbbbbbbbbbb.supabase.co'},
+    {QSWIPE_STAGING_SUPABASE_URL:'https://aaaaaaaaaaaaaaaaaaaa.supabase.co:8443'},
+    {QSWIPE_STAGING_SUPABASE_URL:'https://aaaaaaaaaaaaaaaaaaaa.supabase.co.evil.invalid'}
+  ]) assert.throws(()=>stagingConfiguration({...env,...overrides}),{code:'STAGING_NOT_CONFIGURED'});
+  assert.equal(stagingConfiguration(env).origin,env.QSWIPE_STAGING_SUPABASE_URL);
 });
