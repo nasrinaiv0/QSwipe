@@ -1,5 +1,6 @@
 /** Preview-only auth UI: no localStorage, sessionStorage, role picker or service-role secret. */
 import { listTotp, enrollTotp, verifyTotp } from './mfa.js';
+import { createWorkspace } from './workspace.js';
 const $ = selector => document.querySelector(selector);
 let config = null;
 let bearer = null;
@@ -10,7 +11,8 @@ let mfaBusy = false;
 let loginBusy = false;
 let pendingFactor = null;
 let sessionVersion = 0;
-function clearRoster() { rosterRequest++; $('#roster').replaceChildren(); }
+const p5=createWorkspace({getToken:()=>bearer,getProject:()=>config?.supabaseUrl,onAuthExpired:()=>{sessionVersion++;bearer=null;workspaceIds.clear();clearMfa();clearRoster();p5.clear();$('#grants').replaceChildren();$('#workspace').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again. Unsynced drafts were cleared.');}});
+function clearRoster() { rosterRequest++; $('#roster').replaceChildren();p5.resetSelection(); }
 
 function show(which) {
   for (const id of ['setup-panel','login-panel','workspace-panel']) $(`#${id}`).classList.toggle('hidden', id !== which);
@@ -74,6 +76,7 @@ async function refreshWorkspace(token, version) {
   $('#grants').replaceChildren();
   for(const g of who.grants){const b=document.createElement('span');b.textContent=g.role.replaceAll('_',' ')+' · '+g.unitId.slice(0,8);$('#grants').append(b);}
   clearRoster();
+  p5.bind(who,config.workspaceEnabled);
   say('#roster-status',workspaceIds.size?'Select a workspace to view authorized roster entries.':'No active workspace membership. Contact the staging administrator.');
   return true;
 }
@@ -102,7 +105,7 @@ $('#mfa-verify').addEventListener('submit',e=>{
     try{
       if(await refreshWorkspace(upgraded,version))say('#mfa-status','Authenticator verified. Access is determined by the server.');
     }catch{
-      if(version===sessionVersion && bearer===upgraded){bearer=null;sessionVersion++;show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}
+      if(version===sessionVersion && bearer===upgraded){bearer=null;sessionVersion++;p5.clear();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}
     }
   });
 });
@@ -134,7 +137,7 @@ $('#otp-verify').addEventListener('submit',async e => {
     if(!await refreshWorkspace(token,version))return;
     show('workspace-panel');
     await mfaAction(refreshMfa);
-  } catch { if(version===sessionVersion){bearer=null;clearMfa();say('#login-status','Sign-in was not accepted. Try again.');} } finally {loginBusy=false;}
+  } catch { if(version===sessionVersion){bearer=null;p5.clear();clearMfa();say('#login-status','Sign-in was not accepted. Try again.');} } finally {loginBusy=false;}
 });
 $('#workspace').addEventListener('change',()=>{clearRoster();say('#roster-status','Load the selected workspace roster.');});
 $('#load-roster').addEventListener('click',async()=>{
@@ -153,12 +156,16 @@ $('#load-roster').addEventListener('click',async()=>{
         const td=document.createElement('td');td.textContent=text;tr.append(td);
       }body.append(tr);
     }
+    p5.roster(data.rows);
     say('#roster-status',`${data.rows.length} authorized roster entr${data.rows.length===1?'y':'ies'}.`);
   }catch(e){if(request===rosterRequest && session===bearer) say('#roster-status',`Roster request denied: ${e.message}`);}
 });
 $('#logout').addEventListener('click',async()=>{
-  sessionVersion++;const token=bearer;bearer=null;clearMfa();workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
+  if(p5.hasDrafts()&&!confirm('Sign out and clear unsynced drafts? A timed-out request may have reached the server.'))return;
+  p5.clear();sessionVersion++;const token=bearer;bearer=null;clearMfa();workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
   show('login-panel');say('#login-status','Signed out from this preview.');
   if(token){try{await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(8000),headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`}});}catch{}}
 });
+window.addEventListener('pagehide',()=>{sessionVersion++;bearer=null;clearMfa();clearRoster();p5.clear();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();$('#email').value='';$('#code').value='';accountEmail='';});
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 init();
