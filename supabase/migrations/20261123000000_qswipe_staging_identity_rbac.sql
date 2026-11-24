@@ -115,7 +115,8 @@ create index qs_stg_roles_member_idx on public.qs_stg_role_assignments(membershi
 create index qs_stg_roster_unit_idx on public.qs_stg_roster_assignments(workspace_id,unit_id,status);
 
 -- Explicit grants are necessary on modern Supabase projects; RLS is necessary on
--- every exposed table. No security-definer routines or RLS-bypassing views.
+-- every exposed table. One narrowly scoped private boolean helper below is needed
+-- because membership RLS intentionally hides other members; no bypassing views.
 alter table public.qs_stg_organizations enable row level security;
 alter table public.qs_stg_sites enable row level security;
 alter table public.qs_stg_workspaces enable row level security;
@@ -205,9 +206,51 @@ create policy qs_stg_update_own_profile on public.qs_stg_profiles
   with check (id = (select auth.uid())
     and coalesce((select auth.jwt()->>'is_anonymous'),'false') <> 'true');
 
+-- Private schema MUST NOT be added to PostgREST exposed schemas. The migration
+-- owner owns this function and tables; authenticated clients have no schema CREATE.
+create schema qs_stg_private;
+revoke all on schema qs_stg_private from public, anon, authenticated;
+grant usage on schema qs_stg_private to authenticated;
+
+create function qs_stg_private.roster_visible(p_roster_id uuid) returns boolean
+  language sql stable security definer set search_path = ''
+as $
+  select coalesce(
+    (select auth.uid()) is not null
+    and coalesce((select auth.jwt()->>'is_anonymous'),'false') <> 'true'
+    and exists (
+      select 1
+      from public.qs_stg_roster_assignments r
+      join public.qs_stg_memberships target on target.id = r.membership_id and target.workspace_id = r.workspace_id
+      join public.qs_stg_workspaces w on w.id = r.workspace_id
+      join public.qs_stg_units u on u.id = r.unit_id and u.workspace_id = r.workspace_id
+      where r.id = p_roster_id
+        and r.status = 'active' and w.status = 'active' and u.status = 'active'
+        and target.status = 'active' and target.starts_at <= now()
+        and (target.ends_at is null or target.ends_at > now())
+        and (
+          target.user_id = (select auth.uid())
+          or ((select auth.jwt()->>'aal') = 'aal2' and exists (
+            select 1 from public.qs_stg_memberships actor
+            join public.qs_stg_role_assignments g on g.membership_id = actor.id and g.workspace_id = actor.workspace_id
+            where actor.user_id = (select auth.uid()) and actor.workspace_id = r.workspace_id
+              and actor.status = 'active' and actor.starts_at <= now()
+              and (actor.ends_at is null or actor.ends_at > now())
+              and g.scope_unit_id = r.unit_id and g.role in ('level_1','level_2','level_3','org_admin')
+              and g.starts_at <= now() and (g.ends_at is null or g.ends_at > now())
+          ))
+        )
+    ), false);
+$;
+revoke all on function qs_stg_private.roster_visible(uuid) from public, anon, authenticated;
+grant execute on function qs_stg_private.roster_visible(uuid) to authenticated;
+comment on function qs_stg_private.roster_visible(uuid) is
+  'Non-exposed boolean predicate: caller and subject status plus exact roster scope; never returns personnel data.';
+
 create policy qs_stg_scoped_roster on public.qs_stg_roster_assignments
   for select to authenticated using (
-    status = 'active' and exists (select 1 from public.qs_stg_units u
+    status = 'active' and qs_stg_private.roster_visible(qs_stg_roster_assignments.id)
+    and exists (select 1 from public.qs_stg_units u
       where u.id = qs_stg_roster_assignments.unit_id
         and u.workspace_id = qs_stg_roster_assignments.workspace_id and u.status = 'active')
     and exists (
