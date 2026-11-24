@@ -9,3 +9,5 @@ Fix existing play lifecycle, duplicate/truncated entries and stale decks; improv
 
 ## Verification refinement
 Remove an unused import under strict TypeScript; exercise repeat daily scoring and workspace isolation in the built browser app. Score rewards are non-redeemable cosmetic recognition; no remote game room or cross-device score authority in this PR.
+
+CI reported missing `$$` selector after replacement-string dollar escaping; correct the import using literal concatenation and rerun.
