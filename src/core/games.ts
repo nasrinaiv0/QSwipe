@@ -5,12 +5,12 @@ import type { TriviaQuestion } from './types';
 export function parseEntries(value: unknown, max = 24): string[] {
   if (typeof value !== 'string') return [];
   const seen = new Set<string>();
-  return value.split(/\r?\n/).map(x => x.trim()).filter(x => {
+  return value.split(/\r?\n/).map(x => x.trim().slice(0, 60)).filter(x => {
     const key = x.toLocaleLowerCase();
     if (!x || seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, max).map(x => x.slice(0, 60));
+  }).slice(0, max);
 }
 
 /** Unbiased random index in [0, limit) via rejection sampling over crypto bytes. */
