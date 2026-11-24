@@ -336,7 +336,7 @@ create function qs_stg_private.workforce_command(p_body jsonb) returns jsonb lan
 declare
  actor uuid:=auth.uid(); op text; ws uuid; unit uuid; req uuid; target uuid; dest uuid; roster_id uuid; session_id uuid;
  n timestamptz; enabled boolean; prior qs_stg_private.workforce_events%rowtype; fingerprint bytea; result jsonb; base jsonb;
- allowed text[]; expected integer; v integer; root uuid; h qs_stg_private.managed_shifts%rowtype; s qs_stg_private.attendance_sessions%rowtype;
+ allowed text[]; expected integer; v integer; root uuid; s qs_stg_private.attendance_sessions%rowtype;
  r public.qs_stg_roster_assignments%rowtype; m public.qs_stg_memberships%rowtype; new_roster uuid; new_session uuid;
  start_local timestamp; end_local timestamp; count_weeks integer; i integer; items jsonb:='[]'; day date; first_day date; last_day date; category text; old_leave qs_stg_private.shift_leave%rowtype;
 begin
@@ -363,16 +363,16 @@ begin
   if p_body->>'fromDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' or p_body->>'toDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'QS_INVALID';end if;
   first_day:=(p_body->>'fromDate')::date;last_day:=(p_body->>'toDate')::date;
   if last_day<first_day or last_day-first_day>30 then raise exception 'QS_INVALID';end if;
-  if (select count(*) from qs_stg_private.managed_shifts h join qs_stg_private.attendance_sessions s on s.id=h.session_id where s.workspace_id=ws and s.unit_id=unit and h.local_start::date between first_day and last_day)>100 then raise exception 'QS_CONFLICT';end if;
+  if (select count(*) from qs_stg_private.managed_shifts h join qs_stg_private.attendance_sessions sess on sess.id=h.session_id where sess.workspace_id=ws and sess.unit_id=unit and h.local_start::date between first_day and last_day)>100 then raise exception 'QS_CONFLICT';end if;
   with rows as (
-   select a.id,a.opens_at,a.closes_at,h.timezone,h.local_start,h.local_end,coalesce(v.version,1) version,case when t.session_id is not null then 'retired' when a.opens_at>n then 'upcoming' when a.closes_at>n then 'open' else 'completed' end state,
+   select a.id,a.opens_at,a.closes_at,h.timezone,h.local_start,h.local_end,coalesce(sv.version,1) version,case when t.session_id is not null then 'retired' when a.opens_at>n then 'upcoming' when a.closes_at>n then 'open' else 'completed' end state,
     coalesce((select hv.classification from qs_stg_private.holiday_versions hv where hv.workspace_id=ws and hv.unit_id=unit and hv.local_date=h.local_start::date order by hv.version desc limit 1),'none') holiday,
     (select count(*) from qs_stg_private.shift_eligibility e where e.session_id=a.id) planned,
     (select count(*) from qs_stg_private.shift_eligibility e join qs_stg_private.attendance_current c on c.session_id=e.session_id and c.roster_id=e.roster_id where e.session_id=a.id and c.status='present') present,
     (select count(*) from qs_stg_private.shift_eligibility e join qs_stg_private.attendance_current c on c.session_id=e.session_id and c.roster_id=e.roster_id where e.session_id=a.id and c.status='absent') absent,
     (select count(*) from qs_stg_private.shift_eligibility e join qs_stg_private.shift_leave l on l.session_id=e.session_id and l.roster_id=e.roster_id and l.active where e.session_id=a.id and not exists(select 1 from qs_stg_private.attendance_current c where c.session_id=e.session_id and c.roster_id=e.roster_id)) excused,
     (select count(*) from qs_stg_private.attendance_current c left join qs_stg_private.attendance_events ev on ev.session_id=c.session_id and ev.roster_id=c.roster_id left join qs_stg_private.shift_eligibility e on e.session_id=c.session_id and e.roster_id=c.roster_id left join lateral (select d.resulting_version ver,q.proposed_status status,d.decided_at at from qs_stg_private.correction_decisions d join qs_stg_private.correction_requests q on q.id=d.request_id where d.session_id=c.session_id and d.roster_id=c.roster_id and d.outcome='approved' order by d.resulting_version desc limit 1) last on true where c.session_id=a.id and (ev.id is null or e.roster_id is null or (c.version,c.status,c.recorded_at) is distinct from (coalesce(last.ver,ev.version),coalesce(last.status,ev.status),coalesce(last.at,ev.recorded_at)) or exists(select 1 from qs_stg_private.shift_leave l where l.session_id=c.session_id and l.roster_id=c.roster_id and l.active))) mismatches
-   from qs_stg_private.managed_shifts h join qs_stg_private.attendance_sessions a on a.id=h.session_id left join qs_stg_private.shift_versions v on v.session_id=a.id left join qs_stg_private.shift_retirements t on t.session_id=a.id where a.workspace_id=ws and a.unit_id=unit and h.local_start::date between first_day and last_day
+   from qs_stg_private.managed_shifts h join qs_stg_private.attendance_sessions a on a.id=h.session_id left join qs_stg_private.shift_versions sv on sv.session_id=a.id left join qs_stg_private.shift_retirements t on t.session_id=a.id where a.workspace_id=ws and a.unit_id=unit and h.local_start::date between first_day and last_day
   ) select coalesce(jsonb_agg(jsonb_build_object('sessionId',id,'version',version,'state',state,'localStart',to_char(local_start,'YYYY-MM-DD"T"HH24:MI'),'localEnd',to_char(local_end,'YYYY-MM-DD"T"HH24:MI'),'timezone',timezone,'holiday',holiday,'planned',planned,'present',present,'absent',absent,'excused',excused,'unmarked',planned-present-absent-excused,'mismatches',mismatches) order by opens_at,id),'[]'::jsonb) into items from rows;
   return jsonb_build_object('workspaceId',ws,'unitId',unit,'rows',items,'action',op);
  end if;
@@ -385,7 +385,7 @@ begin
  -- Recheck after idempotency lock.
  perform qs_stg_private.onboarding_command(jsonb_build_object('action','list','workspaceId',ws,'unitId',unit));
  if op in ('edit','cancel','leave','cancel_leave') then
-  select a.* into s from qs_stg_private.attendance_sessions a join qs_stg_private.managed_shifts h on h.session_id=a.id where a.id=session_id and a.workspace_id=ws and a.unit_id=unit for update of a;
+  select a.* into s from qs_stg_private.attendance_sessions a join qs_stg_private.managed_shifts h on h.session_id=a.id where a.id=workforce_command.session_id and a.workspace_id=ws and a.unit_id=unit for update of a;
   if not found or s.opens_at<=clock_timestamp() or exists(select 1 from qs_stg_private.shift_retirements t where t.session_id=s.id) or exists(select 1 from qs_stg_private.attendance_current c where c.session_id=s.id) or exists(select 1 from qs_stg_private.attendance_passes q where q.session_id=s.id) then raise exception 'QS_CONFLICT';end if;
  end if;
  if op in ('repeat','edit') then
