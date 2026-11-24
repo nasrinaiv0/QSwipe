@@ -11,3 +11,5 @@ Tests: actual disposable PG and fictional Chromium, no real provider/device clai
 
 ## CI remediation
 First disposable SQL run found record-variable/table-alias collisions in the workforce RPC. Remove unused record variables and rename SQL aliases that overlap local variables before rerunning. No remote changes.
+
+Second CI run: block qualification was not valid for local declarations. Rename local request identifiers throughout the RPC; retain all table column names. Recheck on disposable PostgreSQL only.
