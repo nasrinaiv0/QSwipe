@@ -10,7 +10,7 @@ try{
  browser=await chromium.launch({executablePath:process.env.QSWIPE_CHROME,args:['--no-sandbox']});await mkdir('creative-previews',{recursive:true});
  const pages=[],errors=[];
  for(const [viewport,colorScheme,reducedMotion] of [[{width:1280,height:900},'light','no-preference'],[{width:390,height:844},'dark','reduce']]){
-  const ctx=await browser.newContext({viewport,colorScheme,reducedMotion});const p=await ctx.newPage();p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());pages.push(p);
+  const ctx=await browser.newContext({viewport,colorScheme,reducedMotion});const p=await ctx.newPage();await p.addInitScript(()=>{window.__roomFrames=0;window.__raceLayoutReads=0;const raf=window.requestAnimationFrame;window.requestAnimationFrame=function(fn){window.__roomFrames++;return raf.call(window,fn);};const width=Object.getOwnPropertyDescriptor(Element.prototype,'clientWidth');Object.defineProperty(Element.prototype,'clientWidth',{...width,get(){if(this.classList?.contains('race-track'))window.__raceLayoutReads++;return width.get.call(this);}});});p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>d.accept());pages.push(p);
  }
  const [host,guest]=pages;
  async function profile(p,name,invite=''){
@@ -24,7 +24,16 @@ try{
  await host.getByRole('button',{name:'space race world'}).click();await host.locator('[aria-label="space race world"][aria-pressed=true]').waitFor();
  await host.screenshot({path:'creative-previews/02-game-settings.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:/Duck race/}).click();for(const p of pages)await p.locator('.race-track.theme-space').first().waitFor();
+ await host.waitForFunction(()=>document.querySelector('#stage').classList.contains('motion-running'));
+ const sample=p=>p.evaluate(async()=>{const frames=window.__roomFrames,reads=window.__raceLayoutReads;await new Promise(r=>setTimeout(r,250));return {frames:window.__roomFrames-frames,reads:window.__raceLayoutReads-reads};});
+ const normal=await sample(host),reduced=await sample(guest);
+ assert.ok(normal.frames>0,'normal-motion race must animate');assert.equal(normal.reads,0,'race loop must not measure track width');assert.equal(reduced.frames,0,'reduced motion must not schedule a continuous frame loop');assert.equal(reduced.reads,0);
  await host.screenshot({path:'creative-previews/03-space-race.png',fullPage:true,animations:'disabled'});
+ for(const p of pages)await p.locator('.podium').waitFor();
+ for(const p of pages){assert.equal(await p.locator('#stage').evaluate(el=>el.classList.contains('motion-running')),false);assert.equal(await p.locator('.duck span').first().evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await p.locator('.duck').first().evaluate(el=>getComputedStyle(el).willChange),'auto');}
+ const geometry=()=>host.locator('.race-track').first().evaluate(el=>{const t=el.getBoundingClientRect(),d=el.querySelector('.duck').getBoundingClientRect();return Math.abs(d.left-t.left-Math.max(0,t.width-58));});
+ assert.ok(await geometry()<2,'desktop finish position');await host.setViewportSize({width:320,height:780});assert.ok(await geometry()<2,'responsive finish position');assert.equal(await host.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await host.screenshot({path:'creative-previews/08-race-finished-320.png',fullPage:true,animations:'disabled'});await host.setViewportSize({width:1280,height:900});
+ console.log('Motion acceptance: zero per-frame track reads, reduced-motion frame loop stopped, idle duck animation stopped, finish geometry responsive.');
  await host.getByRole('button',{name:'Back to lobby'}).click();
  for(let i=0;i<2;i++){
   await host.getByRole('button',{name:/Draw & guess/}).click();await guest.locator('.drawing-surface[role="application"][data-strokes="0"]').waitFor();await host.locator('.drawing-surface[data-strokes="0"]').waitFor();assert.equal(await host.locator('.charades-prompt').count(),0);
