@@ -61,3 +61,25 @@ test('online adapter fails closed in production and pins distinct staging origin
  const res={setHeader(){},status(n){this.code=n;return this;},json(d){this.data=d;}};
  await makeOnlineHandler({env:{...env,VERCEL_ENV:'production'},fetchImpl:()=>{throw Error('must not fetch');}})({},res);assert.equal(res.code,503);
 });
+
+test('three independent memory boards persist simultaneous flips without lost turns or duplicate rewards',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'qs-memory-cas-')),path=join(dir,'rooms.json');
+ let t=100000;const store=createFileStore(path),opt={now:()=>t,rand:n=>n-1};
+ let svc=createPersistentRoomService(store,opt);
+ try{
+  const h=await svc.command({action:'create',name:'Host',team:'jade'}),roomId=h.state.roomId;
+  const a=await svc.command({action:'join',invite:h.state.invite,name:'A',team:'amber'});
+  const b=await svc.command({action:'join',invite:h.state.invite,name:'B',team:'jade'});
+  const players=[h,a,b],run=async(who,action,extra={})=>(await svc.command({action,roomId,...extra},who.credential)).state;
+  const s=await run(h,'start',{version:b.state.version,game:'memory'}),roundId=s.round.id;
+  for(let i=0;i<8;i++){
+   const first=await Promise.all(players.map(p=>run(p,'flip',{roundId,turn:2*i,card:i})));
+   assert.ok(first.every(x=>x.round.turn===2*i+1&&x.round.matched===i));
+   const second=await Promise.all(players.map(p=>run(p,'flip',{roundId,turn:2*i+1,card:i+8})));
+   assert.ok(second.every(x=>x.round.turn===2*i+2&&x.round.matched===i+1));
+   if(i<7)await assert.rejects(()=>run(h,'flip',{roundId,turn:2*i+1,card:i+8}),{code:'CARD_UNAVAILABLE'});
+  }
+  svc=createPersistentRoomService(createFileStore(path),opt);
+  for(const p of players){const x=await run(p,'state');assert.equal(x.phase,'finished');assert.equal(x.round.matched,8);assert.equal(x.players.reduce((sum,seat)=>sum+seat.points,0),150);}
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
