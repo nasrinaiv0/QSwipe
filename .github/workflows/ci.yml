@@ -38,6 +38,7 @@ jobs:
           node test/browser/team-play.mjs
           node test/browser/live-rooms.mjs
           node test/browser/player-collection.mjs
+          node test/browser/seasonal-games.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -59,6 +60,14 @@ jobs:
         with:
           name: qswipe-player-collection-previews
           path: collection-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-seasonal-previews
+          path: seasonal-previews/*.png
           if-no-files-found: warn
           retention-days: 7
 
