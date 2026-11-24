@@ -29,8 +29,8 @@ test('shared drawing authorization, sequence, private prompt, score and persiste
  assert.equal(s.profile.points,85);assert.equal(s.profile.accessories.find(x=>x.id==='comet').unlocked,true);
  svc=createRoomService({now:()=>t,rand:n=>n-1,initial:svc.exportState()});
  assert.equal(svc.command({action:'profile_accessory',accessory:'comet'},a.profileCredential).profile.accessory,'comet');
- t=Date.UTC(2026,11,1);assert.equal(svc.command({action:'profile_state'},a.profileCredential).profile.accessories.find(x=>x.id==='comet').unlocked,true);
  s=run('start',{game:'race',version:run('state').version});assert.equal(s.round.theme,'space');assert.equal(run('state',{},g).round.theme,'space');
+ t=Date.UTC(2026,11,1);assert.equal(svc.command({action:'profile_state'},a.profileCredential).profile.accessories.find(x=>x.id==='comet').unlocked,true);assert.throws(()=>run('state'),{code:'ROOM_ACCESS_DENIED'});
  const p={season:{points:300}};grantSeasonRewards(p);assert.deepEqual(p.seasonRewards,['comet','aurora','starlight']);
 });
 test('custom trivia is host-only, five questions and practice-only across restart',()=>{
