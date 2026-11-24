@@ -13,6 +13,7 @@ create table qs_stg_private.correction_requests (
  session_id uuid not null,
  roster_id uuid not null,
  maker_id uuid not null references auth.users(id),
+ maker_membership_id uuid not null references public.qs_stg_memberships(id),
  base_version integer not null check(base_version>=1),
  original_status text not null check(original_status in ('present','absent')),
  proposed_status text not null check(proposed_status in ('present','absent') and proposed_status<>original_status),
@@ -61,6 +62,7 @@ declare
  current_version integer;
  current_status text;
  now_at timestamptz;
+ maker_membership uuid;
  maker_start timestamptz;
  maker_end timestamptz;
  grant_start timestamptz;
@@ -93,14 +95,17 @@ begin
  select * into req from qs_stg_private.correction_requests r where r.id=p_request and r.session_id=p_session and r.roster_id=p_roster;
  if p_action='submit' then
    if found then
+     if not exists(select 1 from public.qs_stg_memberships m where m.id=req.maker_membership_id and m.user_id=actor and m.workspace_id=slot.workspace_id and m.status='active' and m.starts_at<=now_at and (m.ends_at is null or m.ends_at>now_at)) then raise exception 'QS_FORBIDDEN'; end if;
      if req.maker_id<>actor or req.base_version<>p_expected or req.proposed_status<>p_status or req.reason<>p_reason then raise exception 'QS_IDEMPOTENCY_CONFLICT'; end if;
      replayed:=true;
    else
      if current_version<1 or p_expected<>current_version then raise exception 'QS_VERSION_CONFLICT'; end if;
      if p_status=current_status then raise exception 'QS_INVALID'; end if;
      if now_at>slot.closes_at+interval '30 days' then raise exception 'QS_CORRECTION_WINDOW'; end if;
-     insert into qs_stg_private.correction_requests(id,session_id,roster_id,maker_id,base_version,original_status,proposed_status,reason,created_at)
-       values(p_request,p_session,p_roster,actor,current_version,current_status,p_status,p_reason,now_at)
+     select m.id into maker_membership from public.qs_stg_memberships m where m.user_id=actor and m.workspace_id=slot.workspace_id and m.status='active' and m.starts_at<=now_at and (m.ends_at is null or m.ends_at>now_at) for share;
+     if not found then raise exception 'QS_FORBIDDEN'; end if;
+     insert into qs_stg_private.correction_requests(id,session_id,roster_id,maker_id,maker_membership_id,base_version,original_status,proposed_status,reason,created_at)
+       values(p_request,p_session,p_roster,actor,maker_membership,current_version,current_status,p_status,p_reason,now_at)
        on conflict(id) do nothing returning * into req;
      if not found then raise exception 'QS_IDEMPOTENCY_CONFLICT'; end if;
    end if;
@@ -109,13 +114,13 @@ begin
    if req.maker_id=actor then raise exception 'QS_FORBIDDEN'; end if;
    -- Recheck the maker's current membership, and scoped grant when the maker was a manager.
    select m.starts_at,m.ends_at into maker_start,maker_end from public.qs_stg_memberships m
-     where m.user_id=req.maker_id and m.workspace_id=slot.workspace_id and m.status='active'
+     where m.id=req.maker_membership_id and m.user_id=req.maker_id and m.workspace_id=slot.workspace_id and m.status='active'
        and m.starts_at<=clock_timestamp() and (m.ends_at is null or m.ends_at>clock_timestamp()) for share;
    if not found then raise exception 'QS_FORBIDDEN'; end if;
    if req.maker_id<>subject then
      select g.starts_at,g.ends_at into grant_start,grant_end from public.qs_stg_role_assignments g
        join public.qs_stg_memberships m on m.id=g.membership_id and m.workspace_id=g.workspace_id
-       where m.user_id=req.maker_id and m.workspace_id=slot.workspace_id and m.status='active'
+       where m.id=req.maker_membership_id and m.user_id=req.maker_id and m.workspace_id=slot.workspace_id and m.status='active'
          and g.scope_unit_id=slot.unit_id and g.role in ('level_1','level_2','level_3','org_admin')
          and g.starts_at<=clock_timestamp() and (g.ends_at is null or g.ends_at>clock_timestamp())
        order by g.id limit 1 for share of g,m;
