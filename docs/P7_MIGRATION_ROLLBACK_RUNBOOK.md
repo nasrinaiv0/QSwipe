@@ -1,0 +1,28 @@
+# Migration and rollback runbook — HOLD, approval required
+No commands in this document are authorized for a remote environment. This package does not provision or modify any remote resource.
+
+## Preflight — separate approval
+1. Owner approves separate project/org, region, quoted recurring and one-time costs, data residency, backup/restore capability, named staging operators and expiry. Never use existing QSwipe Personal project as an accidental staging target. Record distinct production and staging project refs in a private change ticket (not secret values). Confirm Vercel preview branch protection, project association, no production alias, no real employee data.
+2. DBA inventories actual migrations, schemas, privileges, event triggers, auth/session shape, exposed PostgREST schemas, automatic grants and extensions; record sanitized evidence. Confirm fresh database before using the existing unapplied identity candidate. If applied anywhere, create reviewed forward migrations rather than changing checksums. Capture encrypted backup and verify restore to an approved isolated target. No migration on a mismatched project, uncertain history or failed backup.
+3. Independent reviewer reviews every SQL file at approved commit; materialize reviewed versioned migration artifacts with Supabase CLI only after approval, record hashes and exact order, run on disposable PostgreSQL first, then isolated Supabase. CI auth stubs and fixture files MUST NEVER be applied to remote Supabase. Apply one phase at a time with gates OFF; compare catalog and RLS/grants after each. Do not expose qs_stg_private. Public wrappers are invoker, private privileged functions have fixed search path; verify owner and effective privileges (including inherited grants). Production adapter is a separate unresolved gate.
+
+## Sequence
+| Step | Source candidate | Preconditions / validation |
+| --- | --- | --- |
+| 0 | docs/STAGING_PRIVILEGE_REMEDIATION_REVIEW.md | inspect public.rls_auto_enable event trigger, revoke only unintended client EXECUTE after DBA approval; preserve event trigger, verify advisors and DDL behavior; no blanket privilege changes |
+| 1 | supabase/migrations/20261123000000_qswipe_staging_identity_rbac.sql | fresh-stage-only; check Auth users, roles, membership/role/roster constraints, RLS AAL1/AAL2 and revocation |
+| 2 | supabase/staging/p3_attendance.sql | p3_gate false, attendance session/current/pass/event tables; validate atomic marks, pass expiry/rotation/idempotency |
+| 3 | supabase/staging/p4_approvals.sql | p4_gate false, current version constraint widened, append-only request/decision tables; verify correction/replay chain |
+| 4 | supabase/staging/p5_workspace.sql | p5_gate false, bounded session discovery; test scope even with zero sessions |
+| 5 | supabase/staging/p6_inbox.sql | p6_gate false, indexes and cursor inbox; check exact workspace scope, no direct writes |
+| 6 | Approved production-specific adapter (not present) | explicit separate review; never change stagingConfiguration to allow production merely to ship |
+| 7 | P7 reconciliation and acceptance evidence | disposable tests plus approved read-only checks on staging; no fixture imports |
+The P3–P6 files are deliberately outside automatic migration discovery. Do not run a generic db push and assume they are deployed. Confirm exact reviewed SHA and migration history before each step. Enable staging-only API flags and corresponding DB gates in order P3 → P4 → P5 → P6 only under explicit change approval with fictional tenants, then test disabled state and negative cases. No production flags in this package.
+
+## Rollback / incident
+- STOP immediately for any cross-tenant disclosure, incorrect attendance, duplicate event, audit discrepancy, provider errors, unexpected exposure, missing backup, failed migration or approval, or regression. Record exact SHA, time, impacted tenant scope and redacted request IDs. Preserve evidence and notify owner/security/DPO.
+- First contain: authorized operator disables ingress/write paths, blocks new requests, disables DB gates from P6 → P5 → P4 → P3 (with P0 API separately disabled) and verifies direct RPC is also denied. Revoke compromised sessions/credentials per incident plan. Do not assume Vercel flags alone stop direct Data API.
+- If a transactional candidate fails before commit, transaction rollback and verify catalog/migration history; do not blindly rerun partially applied scripts. If committed, leave tables/history intact by default and prefer compatible forward remediation. Do not DROP tables, shrink version constraints, truncate audit or delete user data to roll back. P4 version>1 is incompatible with restoring old constraints.
+- Roll back application to a previously approved compatible artifact only after checking schema compatibility, backups, authoritative records and explicit operator approval. Current live baseline is local-first and is NOT safe fallback for real employee data. If no compatible build, retain maintenance mode. Vercel rollback does not revert DB or browser state.
+- If restore is required, use verified backup into isolated target first; compare ledger counts, per-pair chains, QR consumption, correction IDs and timestamps; account for writes since backup and preserve incident evidence. Owner/DBA approve recovery point and outage. Never restore over live automatically. RPO/RTO are proposed below, not guaranteed by current plan.
+- Proposed target RPO ≤15 min / RTO ≤4h subject to approved hosting plan and drill. If impossible, record risk and approve alternatives before launch. Verify data rights, notification deadlines and postmortem. Reopen only after exact-head tests, independent reviewer and owner signoff.
