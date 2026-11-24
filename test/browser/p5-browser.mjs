@@ -24,7 +24,7 @@ const user=id(1),ws=id(2),unit=id(3),person=id(4),slot=id(5),request=id(6),facto
 const token='a'.repeat(80),mfa='b'.repeat(80),project='https://aaaaaaaaaaaaaaaaaaaa.supabase.co';
 const at='2026-11-24T01:00:00Z',close='2026-11-24T09:00:00Z';
 const makeRequest=(over={})=>({requestId:request,baseVersion:1,originalStatus:'absent',proposedStatus:'present',reason:'incorrect_mark',createdAt:at,madeByMe:false,outcome:'pending',decisionReason:null,resultingVersion:null,decidedAt:null,...over});
-await mkdir('p5-previews',{recursive:true});
+const p6=process.env.QSWIPE_P6_BROWSER==='1';const dir=p6?'p6-previews':'p5-previews';await mkdir(dir,{recursive:true});
 async function exercise(name,width,height,manager,colorScheme='light'){
  const ctx=await browser.newContext({viewport:{width,height},colorScheme,reducedMotion:'reduce',deviceScaleFactor:1});
  const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
@@ -43,10 +43,11 @@ async function exercise(name,width,height,manager,colorScheme='light'){
    return route.abort();
   }
   if(u.origin!==origin)return route.abort();
-  if(path==='/api/staging/config')return reply({staging:true,supabaseUrl:project,publishableKey:'sb_publishable_fictionalkey',workspaceEnabled:true});
+  if(path==='/api/staging/config')return reply({staging:true,supabaseUrl:project,publishableKey:'sb_publishable_fictionalkey',workspaceEnabled:true,securityEnabled:p6});
   if(path==='/api/staging/me')return reply({userId:user,memberships:[{id:id(8),workspaceId:ws}],grants:manager&&auth==='Bearer '+mfa?[{unitId:unit,role:'level_1'}]:[]});
   if(path==='/api/staging/roster')return reply({workspaceId:ws,rows:manager&&auth==='Bearer '+mfa?[{id:person,workspace_id:ws,unit_id:unit,display_name_snapshot:'Jordan Lee',position_snapshot:'Support specialist',isOwn:false},{id:own,workspace_id:ws,unit_id:unit,display_name_snapshot:'Alex Rivera',position_snapshot:'Team lead',isOwn:true}]:[{id:person,workspace_id:ws,unit_id:unit,display_name_snapshot:'Jordan Lee',position_snapshot:'Support specialist',isOwn:true}]});
   if(path==='/api/staging/sessions')return reply({rosterId:u.searchParams.get('roster_id'),sessions:[{sessionId:slot,opensAt:at,closesAt:close,status,version}]});
+  if(path==='/api/staging/inbox'){assert.equal(auth,'Bearer '+mfa);return reply({workspaceId:ws,rows:requests.filter(r=>r.outcome==='pending'&&!r.madeByMe).map(r=>({requestId:r.requestId,sessionId:slot,rosterId:person,employee:'Jordan Lee',baseVersion:r.baseVersion,currentVersion:version,originalStatus:r.originalStatus,proposedStatus:r.proposedStatus,reason:r.reason,createdAt:r.createdAt})),nextCursor:null});}
   if(path==='/api/staging/approvals'){
    const d=req.postDataJSON();
    if(d.action==='list')return reply({sessionId:d.sessionId,rosterId:d.rosterId,currentVersion:version,currentStatus:status,requests});
@@ -58,34 +59,49 @@ async function exercise(name,width,height,manager,colorScheme='light'){
   return route.continue();
  });
  try{
-  await page.goto(origin+'/staging/');
+  async function signIn(){await page.goto(origin+'/staging/');
   await page.locator('#email').fill('fictional@example.invalid');await page.locator('#otp-request button').click();
   await page.locator('#code').fill('123456');await page.locator('#otp-verify button').click();
-  await page.locator('#workspace-panel').waitFor({state:'visible'});
+  await page.locator('#workspace-panel').waitFor({state:'visible'});}
+  await signIn();const started=Date.now();
   if(manager){await page.locator('#mfa-verify').waitFor({state:'visible'});await page.locator('#mfa-code').fill('123456');await page.locator('#mfa-verify button').click();await page.waitForFunction(()=>document.querySelector('#mfa-status').textContent.includes('Authenticator verified'));}
   await page.locator('#load-roster').click();await page.locator('#p5-person option[value="'+person+'"]').waitFor({state:'attached'});
+  if(p6&&manager){await page.locator('#p6-inbox-load').click();await page.getByRole('button',{name:'Review Jordan Lee'}).waitFor();await page.getByRole('button',{name:'Review Jordan Lee'}).click();await page.locator('#p5-details').waitFor({state:'visible'});assert.equal(await page.locator('#p5-inbox-heading').evaluate(e=>e===document.activeElement),true);}
   await page.locator('#p5-person').selectOption(person);await page.locator('#p5-session option[value="'+slot+'"]').waitFor({state:'attached'});
   await page.locator('#p5-session').selectOption(slot);await page.locator('#p5-details').waitFor({state:'visible'});
   assert.equal(await page.locator('#p5-version').textContent(),'v1');
   assert.equal(await page.getByRole('button',{name:'Approve',exact:true}).count(),manager?1:0);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.locator('#p5-person').focus();assert.equal(await page.locator('#p5-person').evaluate(e=>document.activeElement===e),true);
-  await page.locator('#p5-workspace').screenshot({path:'p5-previews/'+name+'.png',animations:'disabled'});
+  assert.ok(Date.now()-started<15000,'Fixture UI budget exceeded');
+  if(p6){const a=await page.evaluate(()=>{const panel=document.querySelector('#p5-workspace');const controls=[...panel.querySelectorAll('button,input,select')].filter(e=>e.getClientRects().length);return {targets:controls.every(e=>e.getBoundingClientRect().height>=44),labels:[...panel.querySelectorAll('input,select')].filter(e=>e.getClientRects().length).every(e=>e.labels?.length>0),motion:getComputedStyle(panel.querySelector('.p5-card')).animationName};});assert.equal(a.targets,true);assert.equal(a.labels,true);assert.equal(a.motion,'none');}
+  await page.locator('#p5-workspace').screenshot({path:dir+'/'+name+'.png',animations:'disabled'});
   if(manager){await page.getByRole('button',{name:'Approve',exact:true}).click();await page.waitForFunction(()=>document.querySelector('#p5-version').textContent==='v2');assert.equal(await page.locator('#p5-current').textContent(),'Present');}
   else{
+   const pass='fictional random words for test only';
+   if(p6){await page.locator('#p6-passphrase').fill(pass);await page.locator('#p6-unlock button').click();await page.waitForFunction(()=>document.querySelector('#p6-vault-status').textContent.includes('Encrypted vault saved'));}
    await ctx.setOffline(true);await page.waitForFunction(()=>document.querySelector('#p5-network').textContent.includes('Offline'));
-   await page.locator('#p5-submit-button').click();assert.equal(await page.locator('#p5-queue-count').textContent(),'1');assert.equal(sends,0);
+   await page.locator('#p5-submit-button').click();await page.waitForFunction(()=>document.querySelector('#p5-queue-count').textContent==='1');assert.equal(sends,0);
    assert.equal(await page.locator('#p5-sync').isDisabled(),true);
-   await page.locator('#p5-workspace').screenshot({path:'p5-previews/'+name+'-offline.png',animations:'disabled'});
-   await ctx.setOffline(false);await page.waitForFunction(()=>!document.querySelector('#p5-sync').disabled);
+   await page.locator('#p5-workspace').screenshot({path:dir+'/'+name+'-offline.png',animations:'disabled'});
+   await ctx.setOffline(false);
+   if(p6){const snapshot=await page.evaluate(()=>Object.entries(localStorage));assert.equal(snapshot.length,1);assert.ok(snapshot[0][0].startsWith('qswipe.p6.v1.'));assert.ok(!snapshot[0][1].includes('incorrect_mark')&&!snapshot[0][1].includes('fictional')&&!snapshot[0][1].includes('requestId'));
+    await page.locator('#logout').click();await page.locator('#login-panel').waitFor({state:'visible'});await signIn();
+    await page.locator('#p6-passphrase').fill('wrong passphrase test only');await page.locator('#p6-unlock button').click();await page.waitForFunction(()=>document.querySelector('#p6-vault-status').textContent.includes('could not be unlocked'));assert.deepEqual(await page.evaluate(()=>Object.entries(localStorage)),snapshot);
+    await page.locator('#p6-passphrase').fill(pass);await page.locator('#p6-unlock button').click();await page.waitForFunction(()=>document.querySelector('#p5-queue-count').textContent==='1');
+    await page.locator('#load-roster').click();await page.locator('#p5-person option[value="'+person+'"]').waitFor({state:'attached'});await page.locator('#p5-person').selectOption(person);await page.locator('#p5-session option[value="'+slot+'"]').waitFor({state:'attached'});await page.locator('#p5-session').selectOption(slot);await page.locator('#p5-details').waitFor({state:'visible'});
+    await page.locator('#p5-workspace').screenshot({path:dir+'/'+name+'-restored.png',animations:'disabled'});
+   }
+   await page.waitForFunction(()=>!document.querySelector('#p5-sync').disabled);
    await page.locator('#p5-sync').click();await page.waitForFunction(()=>document.querySelector('#p5-queue-count').textContent==='0');
-   assert.equal(sends,1);assert.equal(await page.locator('#p5-current').textContent(),'Absent');
+   assert.equal(sends,1);await page.waitForFunction(()=>document.querySelector('#p5-current').textContent==='Absent');
+   if(p6){await page.waitForFunction(()=>!document.querySelector('#p6-delete').disabled);await page.locator('#p6-delete').click();await page.waitForFunction(()=>localStorage.length===0);}
   }
   await page.locator('#logout').click();await page.locator('#login-panel').waitFor({state:'visible'});
   assert.equal(await page.locator('#p5-queue-count').textContent(),'0');
   assert.deepEqual(await page.evaluate(()=>({local:localStorage.length,session:sessionStorage.length})),{local:0,session:0});
   assert.deepEqual(errors,[]);
-  console.log('P5 browser passed: '+name+' '+width+'x'+height);
+  console.log((p6?'P6':'P5')+' browser passed: '+name+' '+width+'x'+height);
  }finally{await ctx.close();}
 }
 try{await exercise('manager-desktop',1280,900,true);await exercise('employee-mobile',390,844,false);await exercise('manager-mobile-dark',320,780,true,'dark');}finally{await browser.close();await new Promise(r=>server.close(r));}
