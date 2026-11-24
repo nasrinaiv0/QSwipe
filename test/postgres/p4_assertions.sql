@@ -1,0 +1,61 @@
+\set ON_ERROR_STOP on
+begin;
+set local role authenticated;
+select qs_p3_test.claims(2,'aal1');
+select qs_p3_test.correction_error('QS_VERSION_CONFLICT','submit',1,2,10,2,'absent',null,'incorrect_mark');
+select qs_p3_test.correction_error('QS_INVALID','submit',1,2,10,1,'present',null,'incorrect_mark');
+select qs_p3_test.correction('submit',1,2,10,1,'absent',null,'incorrect_mark');
+do $$ begin
+ if (qs_p3_test.correction('submit',1,2,10,1,'absent',null,'incorrect_mark')->>'replayed')::boolean is distinct from true then raise exception 'Submit replay failed'; end if;
+end $$;
+select qs_p3_test.correction_error('QS_IDEMPOTENCY_CONFLICT','submit',1,2,10,1,'absent',null,'verified_absence');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',1,2,10,null,null,'approved','verified');
+select qs_p3_test.correction('submit',1,2,11,1,'absent',null,'verified_absence');
+select qs_p3_test.claims(1,'aal1');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',1,2,10,null,null,'approved','verified');
+select qs_p3_test.claims(3,'aal2');
+select qs_p3_test.correction_error('QS_FORBIDDEN','list',1,2);
+select qs_p3_test.claims(4,'aal2');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',1,2,10,null,null,'approved','verified');
+select qs_p3_test.claims(1,'aal2');
+select qs_p3_test.correction('submit',2,2,20,1,'absent',null,'incorrect_mark');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',2,2,20,null,null,'approved','verified');
+select qs_p3_test.correction('submit',3,2,30,1,'absent',null,'incorrect_mark');
+select qs_p3_test.claims(5,'aal2');
+select qs_p3_test.correction('decide',1,2,10,null,null,'approved','verified');
+do $$ begin
+ if qs_p3_test.cmd('read',1,2)->>'version'<>'2' or qs_p3_test.cmd('read',1,2)->>'status'<>'absent' then raise exception 'Correction projection wrong'; end if;
+ if (qs_p3_test.correction('decide',1,2,10,null,null,'approved','verified')->>'replayed')::boolean is distinct from true then raise exception 'Decision replay failed'; end if;
+ if jsonb_array_length(qs_p3_test.correction('list',1,2)->'requests')<>2 then raise exception 'Scoped list wrong'; end if;
+end $$;
+select qs_p3_test.correction_error('QS_IDEMPOTENCY_CONFLICT','decide',1,2,10,null,null,'rejected','incorrect_request');
+select qs_p3_test.correction_error('QS_VERSION_CONFLICT','decide',1,2,11,null,null,'approved','verified');
+select qs_p3_test.correction('decide',1,2,11,null,null,'rejected','incorrect_request');
+select qs_p3_test.correction('decide',2,2,20,null,null,'rejected','insufficient_evidence');
+do $$ begin if qs_p3_test.cmd('read',2,2)->>'version'<>'1' then raise exception 'Rejection changed state'; end if; end $$;
+select qs_p3_test.claims(2,'aal1');
+select qs_p3_test.correction('submit',1,2,12,2,'present',null,'verified_attendance');
+select qs_p3_test.claims(5,'aal2');
+select qs_p3_test.correction('decide',1,2,12,null,null,'approved','verified');
+do $$ begin if qs_p3_test.cmd('read',1,2)->>'version'<>'3' then raise exception 'Second correction failed'; end if; end $$;
+reset role;
+update public.qs_stg_memberships set status='revoked' where id=qs_p3_test.id('member',1);
+set local role authenticated;
+select qs_p3_test.claims(5,'aal2');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',3,2,30,null,null,'approved','verified');
+reset role;
+insert into public.qs_stg_memberships(id,workspace_id,user_id,status,starts_at) values(qs_p3_test.id('member',11),qs_p3_test.id('workspace',1),qs_p3_test.id('user',1),'active',now()-interval '1 hour');
+insert into public.qs_stg_role_assignments(membership_id,workspace_id,scope_unit_id,role) values(qs_p3_test.id('member',11),qs_p3_test.id('workspace',1),qs_p3_test.id('unit',1),'level_1');
+set local role authenticated;
+select qs_p3_test.claims(5,'aal2');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',3,2,30,null,null,'approved','verified');
+reset role;
+do $$ begin
+ if (select status from qs_stg_private.attendance_events where session_id=qs_p3_test.id('slot',1))<>'present' or (select version from qs_stg_private.attendance_events where session_id=qs_p3_test.id('slot',1))<>1 then raise exception 'Original ledger mutated'; end if;
+ if (select count(*) from qs_stg_private.correction_decisions where outcome='approved')<>2 then raise exception 'Unexpected approval count'; end if;
+ begin update qs_stg_private.correction_requests set reason='incorrect_mark'; raise exception 'Request history mutated'; exception when raise_exception then if sqlerrm<>'QS_EVENT_IMMUTABLE' then raise; end if; end;
+ begin delete from qs_stg_private.correction_decisions; raise exception 'Decision history deleted'; exception when raise_exception then if sqlerrm<>'QS_EVENT_IMMUTABLE' then raise; end if; end;
+ if has_function_privilege('anon','public.qs_stg_p4_command(text,uuid,uuid,uuid,integer,text,text,text)','EXECUTE') or has_table_privilege('authenticated','qs_stg_private.correction_requests','INSERT') or has_table_privilege('authenticated','qs_stg_private.correction_decisions','SELECT') then raise exception 'Unauthorized grants'; end if;
+end $$;
+rollback;
+\echo 'P4 scoped maker-checker, correction version and immutable audit assertions passed'

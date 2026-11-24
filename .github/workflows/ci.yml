@@ -47,3 +47,8 @@ jobs:
           done
 
           bash test/postgres/p3_concurrency.sh
+
+          for file in supabase/staging/p4_approvals.sql test/postgres/p4_fixture.sql test/postgres/p4_assertions.sql; do
+            docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
+          done
+          bash test/postgres/p4_concurrency.sh
