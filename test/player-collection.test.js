@@ -29,7 +29,7 @@ test('profile isolation, bingo, daily reward, custom tournament history and rest
   if(i<2)s=await run('lobby',{version:s.version});
  }
  assert.equal(s.profile.history.length,1);assert.equal(s.profile.history[0].trophyName,'Orion Champion');assert.equal(s.profile.history[0].points,120);
- assert.equal(s.profile.collection.filter(x=>x.unlocked).length,5);
+ assert.equal(s.profile.collection.filter(x=>x.unlocked).length,8);
  assert.equal((await run('state',{},guest)).profile.points,0);
  await svc.command({action:'close',roomId},host.credential);
  svc=createPersistentRoomService(createFileStore(path),opt);
