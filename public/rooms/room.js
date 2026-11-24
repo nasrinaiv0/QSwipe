@@ -26,7 +26,7 @@ const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
 const safeErrors={STROKE_UNAVAILABLE:'Drawing changed or the stroke limit was reached.',INVALID_QUESTION:'Enter a question and four different answers.',LOBBY_CHANGED:'Room changed; try again after synchronization.',ACCESSORY_LOCKED:'Unlock this accessory through games.',GUESS_UNAVAILABLE:'Wait a moment or check whether this round has ended.',PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
  for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||profileBusy||!available||!!resumeId||b.dataset.locked==='true';for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
-function reset(text){epoch++;drawActive=false;pendingStroke=null;keyboardRound='';forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
+function reset(text){epoch++;drawActive=false;pendingStroke=null;keyboardRound='';forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';stopVisual();visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
 async function send(body,auth=credential){
  if(busy||!available)return;
  const e=epoch,started=Date.now();busy=true;syncControls();
@@ -171,7 +171,7 @@ function drawSurface(q,canDraw){
 }
 
 function renderStage(){
- if(drawActive)return;const keepDrawingFocus=document.activeElement?.classList.contains('drawing-surface');const oldGuess=stage.querySelector('input[name=guess]');const draftGuess=oldGuess?.value??'',hadFocus=document.activeElement===oldGuess;cancelAnimationFrame(raf);visual=null;stage.replaceChildren();const s=state,q=s.round;
+ if(drawActive)return;const keepDrawingFocus=document.activeElement?.classList.contains('drawing-surface');const oldGuess=stage.querySelector('input[name=guess]');const draftGuess=oldGuess?.value??'',hadFocus=document.activeElement===oldGuess;stopVisual();visual=null;stage.replaceChildren();const s=state,q=s.round;
  if(s.phase==='lobby'){
   heading('Ready for game time?',s.host?'Choose a game once at least two players are in the room.':'Waiting for your host to choose a game.');
   const grid=el('div',undefined,'game-grid');for(const [game,symbol] of [['wheel','✦'],['race','🦆'],['trivia','?'],['memory','◆'],['bingo','▦'],['charades','✋'],['drawing','✎'],['custom_trivia','✦']]){
@@ -210,13 +210,18 @@ function renderStage(){
  if(s.phase==='reveal'&&!s.host)stage.append(el('p','Waiting for the host to continue.','muted'));
  animate();
 }
+function stopVisual(){
+ if(raf)cancelAnimationFrame(raf);raf=0;stage.classList.remove('motion-running');
+}
 function animate(){
- cancelAnimationFrame(raf);if(!visual||!state?.round)return;
- const q=state.round,t=now(),progress=Math.max(0,Math.min(1,(t-q.startsAt)/(q.endsAt-q.startsAt))),done=state.phase!=='playing',reduced=motion.matches;
+ if(raf)cancelAnimationFrame(raf);raf=0;
+ if(!visual||!state?.round||document.hidden){stage.classList.remove('motion-running');return;}
+ const q=state.round,t=now(),progress=Math.max(0,Math.min(1,(t-q.startsAt)/(q.endsAt-q.startsAt))),done=state.phase!=='playing',reduced=motion.matches,running=!done&&progress<1&&!reduced;
  if(visual.type==='wheel'){const p=done?1:reduced?0:1-(1-progress)**4;visual.rotor.setAttribute('transform','rotate('+visual.target*p+' 150 150)');}
- if(visual.type==='race')for(const {id,track,duck} of visual.tracks){const p=done?1:reduced?0:Math.max(0,Math.min(1,(t-q.startsAt)/q.finish[id]));duck.style.transform='translateX('+p*Math.max(0,track.clientWidth-58)+'px)';}
+ if(visual.type==='race')for(const {id,duck} of visual.tracks){const p=done?1:reduced?0:Math.max(0,Math.min(1,(t-q.startsAt)/q.finish[id]));duck.style.transform='translateX('+p*100+'%)';}
  if(visual.type==='timer')visual.bar.style.transform='scaleX('+(done?0:1-progress)+')';
- if(!done&&progress<1&&!document.hidden)raf=requestAnimationFrame(animate);
+ if(stage.classList.contains('motion-running')!==running)stage.classList.toggle('motion-running',running);
+ if(running)raf=requestAnimationFrame(animate);
 }
 
 let customKey='';
@@ -243,7 +248,7 @@ function render(){
  const show=state.host&&state.phase==='lobby';
  $('#invite-panel').hidden=!show;
  const key=state.roomId+':'+state.version+':'+state.me+':'+JSON.stringify(state.season??[])+':'+(state.round?.game==='memory'?JSON.stringify(state.round.cards)+state.round.locked:state.round?.game==='bingo'?state.round.calls.length:'')+':'+(state.profile?JSON.stringify(state.profile):'');
- if(key!==renderedKey){renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}renderStage();drawRoomProfile();}
+ if(key!==renderedKey){renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}renderStage();drawRoomProfile();}else if(motion.matches&&visual)animate();
  syncControls();
 
 }
@@ -255,7 +260,8 @@ const invite=/^#join=([a-f0-9]{32})$/.exec(location.hash)?.[1];
 if(invite){forgetSession();$('#join input[name=invite]').value=invite;history.replaceState(null,'',location.pathname);$('#join input[name=name]').focus();}
 async function health(){if(healthBusy)return;healthBusy=true;lastHealth=Date.now();try{const res=await fetch('/api/rooms/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});const d=await res.json();if(!res.ok||d.available!==true)throw Error();available=true;connected('Staging room service');say('');}catch{available=false;connected('Preview only');say('Shared rooms require the isolated room server. This static preview does not connect to a live backend.');}healthBusy=false;syncControls();if(available&&profileSecret)await loadProfile();if(available&&!invite){const saved=readSession();if(saved){credential=saved.credential;resumeId=saved.roomId;await send({action:'state',roomId:resumeId});}}}
 interval=setInterval(()=>{if(!busy&&!drawActive&&!pendingStroke&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAnimationFrame(raf);else if(state&&!drawActive){cmd('state');animate();}});
-window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;drawActive=false;pendingStroke=null;cancelAnimationFrame(raf);credential=null;state=null;});
+document.addEventListener('visibilitychange',()=>{document.documentElement.classList.toggle('motion-paused',document.hidden);if(document.hidden)stopVisual();else if(state){if(!drawActive)cmd('state');animate();}});
+motion.addEventListener('change',()=>animate());
+window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;drawActive=false;pendingStroke=null;stopVisual();credential=null;state=null;});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 drawEntryProfile();health();
