@@ -12,7 +12,8 @@ test('migration is self-contained staging-only and all exposed tables have RLS',
     assert.match(sql,new RegExp(`revoke all on public\\.qs_stg_${t} from public, anon, authenticated`,'i'));
   }
   assert.match(sql,/^begin;/m);assert.match(sql,/^commit;/m);
-  assert.doesNotMatch(sql,/security\s+definer|grant\s+all\s+on|using\s*\(\s*true\s*\)|with\s+check\s*\(\s*true\s*\)/i);
+  assert.equal((sql.match(/security\s+definer/gi)??[]).length,1);
+  assert.doesNotMatch(sql,/grant\s+all\s+on|using\s*\(\s*true\s*\)|with\s+check\s*\(\s*true\s*\)/i);
 });
 
 test('roles cannot be mutated by authenticated clients, and memberships cannot be self-granted',()=>{
@@ -56,4 +57,14 @@ test('correlated RLS policies qualify OUTER row columns to prevent inner id capt
     assert.match(p,/u\.status = 'active'/);assert.match(p,/u\.workspace_id = qs_stg_/);
   }
   assert.match(policy('qs_stg_scoped_roster'),/or \(\(select auth\.jwt\(\)->>'aal'\) = 'aal2' and exists/);
+});
+
+ test('only narrow private roster helper can bypass membership RLS',()=>{
+  assert.match(sql,/create function qs_stg_private\.roster_visible\(p_roster_id uuid\) returns boolean\s+language sql stable security definer set search_path = ''/i);
+  assert.match(sql,/revoke all on function qs_stg_private\.roster_visible\(uuid\) from public, anon, authenticated/i);
+  assert.match(sql,/grant execute on function qs_stg_private\.roster_visible\(uuid\) to authenticated/i);
+  assert.match(sql,/target\.status = 'active' and target\.starts_at <= now\(\)/);
+  assert.match(sql,/target\.ends_at is null or target\.ends_at > now\(\)/);
+  assert.match(sql,/actor\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(sql,/qs_stg_private\.roster_visible\(qs_stg_roster_assignments\.id\)/);
 });
