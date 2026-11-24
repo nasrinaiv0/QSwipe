@@ -28,7 +28,18 @@
     <p>Lost your authenticator? Sign out and contact the authorized staging administrator for identity-verified recovery. There is no bypass.</p>
    </section>
    <label>Workspace<select id="workspace"></select></label><div id="grants" class="grants"></div>
-   <section id="onboarding-panel" class="p5-card hidden" aria-labelledby="onboarding-title">
+   <section id="advanced-panel" class="p5-card hidden" aria-labelledby="advanced-title">
+<div class="p5-heading"><h2 id="advanced-title">Leave &amp; workforce planning</h2><span class="p5-pill">Verified</span></div>
+<p>Self-service leave is for future eligible shifts. Administrators review requests independently.</p>
+<p id="adv-status" role="status" aria-live="polite"></p>
+<div class="p5-actions"><button id="adv-mine" type="button">My leave requests</button><button id="adv-inbox" type="button" class="secondary hidden">Unit approval inbox</button></div>
+<div id="adv-own" class="hidden"><form id="adv-leave"><label>Eligible shift<select id="adv-shift" required></select></label><label>Leave category<select id="adv-category"><option value="approved_leave">Leave</option><option value="authorized_excuse">Authorized excuse</option></select></label><button type="submit">Request leave</button></form></div>
+<div id="adv-requests"></div>
+<div id="adv-admin" class="hidden">
+<section class="onboarding-section"><h3>Future transfers</h3><p>Plan a same-workspace transfer. Activation requires an authorized manager after the effective date.</p><form id="adv-transfer"><label>Employee roster UUID<input id="adv-roster" maxlength="36" required></label><label>Destination unit UUID<input id="adv-dest" maxlength="36" required></label><label>Effective date and time (UTC)<input id="adv-effective" type="datetime-local" required></label><button type="submit">Plan transfer</button></form><div id="adv-transfers"></div></section>
+<section class="onboarding-section"><h3>Regional holiday calendar</h3><p>Enter a verified official proclamation reference. Classification is not a payroll determination.</p><form id="adv-holiday"><label>Local date<input id="adv-date" type="date" required></label><label>Region<input id="adv-region" maxlength="80" required placeholder="Philippines / Region XI"></label><label>Official source reference<input id="adv-source" maxlength="160" required></label><label>Classification<select id="adv-class"><option value="regular">Regular</option><option value="special">Special</option><option value="other">Other</option><option value="none">None / remove</option></select></label><label>Expected version<input id="adv-version" type="number" min="0" max="2147483646" step="1" value="0" required></label><button type="submit">Record regional holiday</button></form><div id="adv-holidays"></div></section>
+</div><button id="adv-retry" type="button" class="secondary hidden">Retry identical command</button></section>
+<section id="onboarding-panel" class="p5-card hidden" aria-labelledby="onboarding-title">
     <div class="p5-heading"><h2 id="onboarding-title">People &amp; scheduling</h2><span class="p5-pill">Server managed</span></div>
     <p>Invited employees only. Memberships and shifts are managed by an authorized administrator.</p>
     <p id="onboarding-status" role="status" aria-live="polite"></p>
@@ -49,7 +60,7 @@
 <p>Choose a reporting period of up to 31 days. Retired versions remain in history but do not count toward active totals.</p>
 <form id="workforce-report"><label>From date<input id="wf-from" type="date" required></label><label>Through date<input id="wf-to" type="date" required></label><button type="submit">Load historical report</button></form>
 <p id="wf-status" role="status" aria-live="polite"></p>
-<div class="adapter-metrics" id="wf-metrics"></div><div id="wf-rows"></div>
+<div class="adapter-metrics" id="wf-metrics"></div><section id="wf-visual" class="hidden" aria-label="Visual schedule and workforce analytics"><div id="wf-rates" class="adapter-metrics"></div><div id="wf-calendar" class="wf-calendar"></div></section><div id="wf-rows"></div>
 <form id="wf-command"><label>Operation<select id="wf-action"><option value="repeat">Recurring weekly shifts</option><option value="edit">Replace future shift</option><option value="cancel">Cancel future shift</option><option value="transfer">Transfer employee</option><option value="leave">Record approved leave</option><option value="cancel_leave">Cancel leave</option><option value="holiday">Classify holiday</option></select></label><div id="wf-fields" class="wf-fields"></div><button type="submit">Submit verified command</button></form>
 <p class="p5-small">Use existing session/roster/unit UUIDs. Schedule edits and leave require current versions. Holidays are administrative labels, not statutory pay calculations.</p><button id="wf-retry" type="button" class="secondary hidden">Retry identical command</button>
 </section>

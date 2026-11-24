@@ -71,6 +71,10 @@ jobs:
             docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
           done
 
+          for file in supabase/staging/advanced_workforce.sql test/postgres/advanced_assertions.sql; do
+            docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
+          done
+
   staging-browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -95,10 +99,11 @@ jobs:
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 node test/browser/p5-browser.mjs
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 node test/browser/p5-browser.mjs
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 QSWIPE_WORKFORCE_BROWSER=1 node test/browser/p5-browser.mjs
+          QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 QSWIPE_WORKFORCE_BROWSER=1 QSWIPE_ADVANCED_BROWSER=1 node test/browser/p5-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qswipe-workforce-rendered-previews
-          path: workforce-previews/*.png
+          name: qswipe-advanced-rendered-previews
+          path: advanced-previews/*.png
           if-no-files-found: warn
           retention-days: 7
