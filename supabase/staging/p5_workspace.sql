@@ -1,5 +1,9 @@
 -- P5 REVIEW CANDIDATE: disposable CI only; no remote apply.
 begin;
+create table qs_stg_private.p5_gate(singleton boolean primary key default true check(singleton),enabled boolean not null default false);
+insert into qs_stg_private.p5_gate(singleton) values(true);
+alter table qs_stg_private.p5_gate enable row level security;
+revoke all on qs_stg_private.p5_gate from public,anon,authenticated;
 create function qs_stg_private.p5_sessions(p_roster uuid) returns jsonb
 language plpgsql security definer set search_path='' as $p5$
 declare
@@ -7,7 +11,8 @@ declare
   result jsonb:='[]'::jsonb;
   snapshot jsonb;
 begin
-  if p_roster is null or auth.uid() is null then raise exception 'QS_FORBIDDEN'; end if;
+  if not exists(select 1 from qs_stg_private.p5_gate where singleton and enabled) then raise exception 'QS_DISABLED'; end if;
+  if p_roster is null or auth.uid() is null or not qs_stg_private.roster_visible(p_roster) then raise exception 'QS_FORBIDDEN'; end if;
   -- The candidate query is bounded and never returned without P3 authorization.
   -- P3 locks and validates session, current actor, target and unit for each pair.
   for item in
