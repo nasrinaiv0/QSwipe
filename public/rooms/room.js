@@ -50,7 +50,7 @@ function drawBoard(){
  const list=$('#players');list.replaceChildren();
  [...state.players].sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).forEach((p,i)=>{
   const n=el('div',undefined,'player'+(p.badges.includes('Gold frame')?' gold':'')),info=el('div',undefined,'grow');
-  info.append(el('strong',p.name+(p.id===state.me?' · You':'')+(p.id!==state.me&&state.host&&p.id===state.me?' · Host':'')),el('div',(p.team==='jade'?'Jade':'Amber')+' · '+p.rounds+' rounds','muted'));
+  info.append(el('strong',p.name+(p.id===state.me?' · You':'')),el('div',(p.team==='jade'?'Jade':'Amber')+' · '+p.rounds+' rounds','muted'));
   if(p.badges.length)info.append(el('div','✦ '+p.badges.join(' · '),'badge-line'));
   n.append(el('span',String(i+1),'rank'),el('span',undefined,'dot '+p.team),info,el('span',String(p.points),'score'));list.append(n);
  });
@@ -97,6 +97,7 @@ function renderStage(){
  }
  if(s.phase==='finished'){
   stage.append(el('div',q.game==='trivia'?'Trivia complete · scores updated':'🏆 '+name(q.winner)+' wins!','result'));
+  if(q.game==='race'){const podium=el('div',undefined,'podium');for(const [i,id] of q.order.slice(0,3).entries()){const p=el('div',undefined,'podium-step');p.append(el('strong',String(i+1)),el('span',name(id)));podium.append(p);}stage.append(podium);}
   if(s.host)stage.append(control('Back to lobby',()=>cmd('lobby',{version:state.version}),'stage-action'));
  }
  if(s.phase==='reveal'&&!s.host)stage.append(el('p','Waiting for the host to continue.','muted'));
