@@ -26,7 +26,7 @@ const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
 const safeErrors={ACCESSORY_LOCKED:'Unlock this accessory through games.',GUESS_UNAVAILABLE:'Wait a moment or check whether this round has ended.',PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
  for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||!available||!!resumeId;for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
-function reset(text){epoch++;forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
+function reset(text){epoch++;forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
 async function send(body,auth=credential){
  if(busy||!available)return;
  const e=epoch,started=Date.now();busy=true;syncControls();
@@ -65,6 +65,11 @@ function mascot(id,accessory='none'){
  g.append(svg('ellipse',{cx:50,cy:49,rx:31,ry:27,fill:palette[1]}));}
  for(const x of [39,61])g.append(svg('circle',{cx:x,cy:48,r:3.2,fill:'#202b25',class:'mascot-eye'}),svg('ellipse',{cx:x+(x<50?-8:8),cy:57,rx:5,ry:3,fill:'#eaa1a3',opacity:.8}));
  if(id==='duck')g.append(svg('ellipse',{cx:50,cy:58,rx:11,ry:5,fill:'#e59134'}));else g.append(svg('path',{d:'M44 59Q50 65 56 59',stroke:'#674e45','stroke-width':2,fill:'none','stroke-linecap':'round'}));
+ if(id==='gemini'){g.append(svg('circle',{cx:15,cy:55,r:8,fill:palette[0]}),svg('circle',{cx:85,cy:55,r:8,fill:palette[0]}));}
+ if(id==='virgo')g.append(svg('path',{d:'M50 23Q39 4 31 12Q32 27 50 23Q66 4 72 12Q67 27 50 23',fill:'#76a468'}));
+ if(id==='libra')g.append(svg('path',{d:'M18 27H82 M28 27L20 43H36Z M72 27L64 43H80Z',stroke:'#8d7754','stroke-width':2,fill:'#e9ce88'}));
+ if(id==='sagittarius')g.append(svg('path',{d:'M76 65Q95 45 76 25 M76 25V65 M69 45H94L88 39M94 45L88 51',stroke:'#9c6748','stroke-width':2.5,fill:'none','stroke-linecap':'round'}));
+ if(id==='aquarius')g.append(svg('path',{d:'M15 30Q22 18 29 30T43 30 M57 30Q64 18 71 30T85 30',stroke:'#4d94c2','stroke-width':4,fill:'none','stroke-linecap':'round'}));
  if(zodiac){const badge=svg('text',{x:50,y:78,'text-anchor':'middle','font-size':15,fill:'#263c32','font-weight':700});badge.textContent=zodiac[2];g.append(badge);}
  if(accessory==='scarf')g.append(svg('path',{d:'M28 66Q50 75 72 66L70 75L58 79L62 89L52 87L48 77L30 74Z',fill:'#c75b62'}));
  if(accessory==='glasses'){for(const x of [39,61])g.append(svg('rect',{x:x-9,y:41,width:18,height:14,rx:5,fill:'none',stroke:'#33443d','stroke-width':2.5}));g.append(svg('path',{d:'M48 47H52',stroke:'#33443d','stroke-width':2.5}));}
@@ -81,7 +86,7 @@ function profilePanel(target,p,editable=false){
  if(editable){const forget=control('Forget profile on this device',()=>{if(!confirm('Remove the saved profile credential? Without it, you cannot recover this profile.'))return;profileSecret=null;profile=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet');target.append(forget);}
 }
 function drawEntryProfile(){
- const content=$('#profile-content');content.replaceChildren();$('#profile-create').hidden=!!profileSecret;
+ const content=$('#profile-content');if(!profile)content.replaceChildren();$('#profile-create').hidden=!!profileSecret;
  if(profile)profilePanel(content,profile,true);else if(profileSecret)content.append(el('p','Saved profile is unavailable. Retry or forget it.'),control('Retry profile',loadProfile,'quiet'),control('Forget profile',()=>{profileSecret=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet'));
  for(const form of [$('#create'),$('#join')]){const input=form.elements.name;input.readOnly=!!profile;if(profile)input.value=profile.name;}
  syncControls();
