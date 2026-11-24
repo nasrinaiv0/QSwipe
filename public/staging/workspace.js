@@ -38,6 +38,8 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
   for(const b of document.querySelectorAll('[data-p5-decision]'))b.disabled=busy||!online()||queue.busy||vaultBusy;
   $('#p6-unlock button').disabled=!vault||vaultBusy||queue.busy||!!queue.items.length||!!vault?.unlocked;
   $('#p6-delete').disabled=vaultBusy||queue.busy;
+  $('#p6-save').classList.toggle('hidden',!vaultDirty||!vault?.unlocked);
+  $('#p6-save').disabled=vaultBusy||queue.busy;
   $('#p6-inbox-load').disabled=!online()||inboxBusy||busy||queue.busy;
   $('#p6-inbox-more').disabled=!online()||inboxBusy||busy||queue.busy;
   $('#p6-inbox-more').classList.toggle('hidden',!inboxCursor);
@@ -91,8 +93,8 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
  async function openInbox(r){
   if(!p6||!online()||busy||queue.busy||vaultBusy)return;
   if(!people.some(p=>p.id===r.rosterId)){say('Load the authorized roster and select this employee before reviewing.');$('#load-roster').focus();return;}
-  $('#p5-person').value=r.rosterId;await loadSessions();
-  if(person()?.id!==r.rosterId||!sessions.some(s=>s.sessionId===r.sessionId))return;
+  const g=identityEpoch;$('#p5-person').value=r.rosterId;await loadSessions();
+  if(g!==identityEpoch||person()?.id!==r.rosterId||!sessions.some(s=>s.sessionId===r.sessionId))return;
   $('#p5-session').value=r.sessionId;await loadDetails();
   if(validContext()){$('#p5-inbox-heading').setAttribute('tabindex','-1');$('#p5-inbox-heading').focus();}
  }
@@ -104,6 +106,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
   catch{if(g===identityEpoch){vault?.lock();vaultSay('Vault could not be unlocked. Check passphrase, browser storage or another open tab. Existing ciphertext was not overwritten.');}}
   finally{if(g===identityEpoch){vaultBusy=false;network();}}
  });
+ $('#p6-save').addEventListener('click',async()=>{if(!vaultBusy&&!queue.busy){await persistVault();drawQueue();}});
  $('#p6-delete').addEventListener('click',()=>{if(!vault?.unlocked||vaultBusy||queue.busy)return;if(!confirm('Delete encrypted drafts from this device? A previously submitted correction may still exist on the server.'))return;try{vault.delete();queue.clear();queue.bind(owner);vaultDirty=false;$('#p6-unlock').classList.remove('hidden');$('#p6-delete').classList.add('hidden');vaultSay('Vault deleted · memory-only queue.');drawQueue();}catch{vaultSay('Unable to delete vault.');}});
  function roster(rows){if(!enabled||!owner)return;resetSelection();people=rows.filter(p=>p&&typeof p.id==='string');for(const p of people)$('#p5-person').append(new Option(p.display_name_snapshot+(p.isOwn?' (you)':''),p.id));say(people.length?'Choose a person to load attendance sessions.':'No authorized people.');network();}
  async function loadSessions(){
