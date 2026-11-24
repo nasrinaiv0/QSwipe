@@ -23,7 +23,7 @@ export const welcome: View = {
     const back = S.hasWorkspace();
     return `<div class="onboard-inner page-enter">
       <div class="between">
-        <div class="onboard-brand"><img src="./brand.svg" alt=""><div><strong>QSwipe</strong><small>Attendance, commitments and team onboarding</small></div></div>
+        <div class="onboard-brand"><img src="./brand.svg" alt=""><div><strong>QSwipe</strong><small>Attendance, team tracking and games</small></div></div>
         ${back ? `<a class="btn ghost" href="#/today">${icon('chevronLeft')}Back to ${esc(S.cfg().name)}</a>` : ''}
       </div>
       <div class="onboard-grid">
