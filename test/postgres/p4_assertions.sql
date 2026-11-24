@@ -44,6 +44,12 @@ set local role authenticated;
 select qs_p3_test.claims(5,'aal2');
 select qs_p3_test.correction_error('QS_FORBIDDEN','decide',3,2,30,null,null,'approved','verified');
 reset role;
+insert into public.qs_stg_memberships(id,workspace_id,user_id,status,starts_at) values(qs_p3_test.id('member',11),qs_p3_test.id('workspace',1),qs_p3_test.id('user',1),'active',now()-interval '1 hour');
+insert into public.qs_stg_role_assignments(membership_id,workspace_id,scope_unit_id,role) values(qs_p3_test.id('member',11),qs_p3_test.id('workspace',1),qs_p3_test.id('unit',1),'level_1');
+set local role authenticated;
+select qs_p3_test.claims(5,'aal2');
+select qs_p3_test.correction_error('QS_FORBIDDEN','decide',3,2,30,null,null,'approved','verified');
+reset role;
 do $$ begin
  if (select status from qs_stg_private.attendance_events where session_id=qs_p3_test.id('slot',1))<>'present' or (select version from qs_stg_private.attendance_events where session_id=qs_p3_test.id('slot',1))<>1 then raise exception 'Original ledger mutated'; end if;
  if (select count(*) from qs_stg_private.correction_decisions where outcome='approved')<>2 then raise exception 'Unexpected approval count'; end if;
