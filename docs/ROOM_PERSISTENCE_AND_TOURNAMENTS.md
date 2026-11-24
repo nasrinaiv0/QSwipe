@@ -9,3 +9,5 @@ Tests: unit serialization, restart, CAS conflicts, no plaintext bearer, invalid/
 
 ## CI refinement
 Initial disposable PostgreSQL RPC operations succeeded, but the fixture's privilege introspection as anon could not resolve the intentionally private schema. Assert denied direct access as anon; perform privilege catalog assertions after RESET ROLE. No change to the database grants.
+
+Browser fixture found the skin button accessible name included its decorative duck emoji. Mark the icon decorative and label the control explicitly; preserve tournament draft fields on version refresh. Rerun exact-head checks.
