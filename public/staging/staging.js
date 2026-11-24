@@ -16,7 +16,7 @@ let sessionVersion = 0;
 const advanced=createAdvanced({getToken:()=>bearer,onAuthExpired:()=>{sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearMfa();clearRoster();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again.');}});
 const admin=createOnboarding({getToken:()=>bearer,refreshIdentity:async()=>{const token=bearer,version=sessionVersion;try{await refreshWorkspace(token,version);}catch{if(token===bearer){sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearRoster();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}}},onAuthExpired:()=>{sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearMfa();clearRoster();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again.');}});
 const p5=createWorkspace({getToken:()=>bearer,getProject:()=>config?.supabaseUrl,onAuthExpired:()=>{sessionVersion++;bearer=null;workspaceIds.clear();clearMfa();clearRoster();advanced.clear();admin.clear();p5.clear();$('#grants').replaceChildren();$('#workspace').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again. Memory drafts were cleared; saved encrypted drafts remain locked.');}});
-function clearRoster() { rosterRequest++; $('#roster').replaceChildren();p5.resetSelection(); }
+function clearRoster() { advanced.setRoster([]);rosterRequest++; $('#roster').replaceChildren();p5.resetSelection(); }
 
 function show(which) {
   for (const id of ['setup-panel','login-panel','workspace-panel']) $(`#${id}`).classList.toggle('hidden', id !== which);
@@ -81,7 +81,7 @@ async function refreshWorkspace(token, version) {
   for(const g of who.grants){const b=document.createElement('span');b.textContent=g.role.replaceAll('_',' ')+' · '+g.unitId.slice(0,8);$('#grants').append(b);}
   clearRoster();
   p5.bind(who,config.workspaceEnabled,config.securityEnabled,config.adapterEnabled);
-  admin.bind(who,config.onboardingEnabled,config.workforceEnabled);
+  admin.bind(who,config.onboardingEnabled,config.workforceEnabled,config.advancedEnabled);
   advanced.bind(who,config.advancedEnabled);
   say('#roster-status',workspaceIds.size?'Select a workspace to view authorized roster entries.':'No active workspace membership. Contact the staging administrator.');
   return true;
