@@ -151,7 +151,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
    if(r.outcome!=='pending')row.append(node('p',fmt(r.decidedAt)+' · '+pretty(r.decisionReason)+' · resulting v'+r.resultingVersion,'p5-small'));
    history.append(row);
   }
-  sessions=sessions.map(s=>s.sessionId===data.sessionId?{...s,status:data.currentStatus,version:data.currentVersion}:s);adapter.report(sessions,true);drawQueue();network();
+  sessions=sessions.map(s=>s.sessionId===data.sessionId?{...s,status:data.currentStatus,version:data.currentVersion}:s);for(const option of $('#p5-session').options){const s=sessions.find(x=>x.sessionId===option.value);if(s)option.textContent=fmt(s.opensAt)+' · '+pretty(s.status);}adapter.report(sessions,true);drawQueue();network();
  }
  async function loadDetails(){
   const e=++epoch,p=person(),s=selected();busy=true;clearDetails();network();
