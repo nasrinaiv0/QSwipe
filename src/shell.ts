@@ -42,16 +42,16 @@ export function renderShell() {
       <span class="grow"><strong class="truncate">${esc(c.name)}</strong><small>${plural(S.ws().people.length, 'person', 'people')}</small></span>${icon('chevrons')}
     </button>
     <nav class="nav" aria-label="Sections">${groups.map(g => `<div class="nav-label">${g}</div>${PAGES.filter(p => p.group === g).map(nav).join('')}`).join('')}</nav>
-    <div class="sidebar-foot">
+    <div class="sidebar-foot"><a class="btn" href="/staging/">Verified workspace · staging</a>
       <button class="me-card" type="button" data-action="open-account" aria-label="Account: ${esc(me.name)}">
         ${avatar(me, 'sm', { round: true })}<span class="grow"><strong class="truncate">${esc(me.name)}</strong><small class="truncate">${esc(S.levelTitle(me.level))}${S.isOwner(me) ? ' · Owner' : ''}</small></span>
       </button>
-      <div class="demo-note"><span class="dot" aria-hidden="true"></span><span>Stored on this device only</span></div>
+      <div class="demo-note"><span class="dot" aria-hidden="true"></span><span>Local demo · stored on this device</span></div>
     </div>`;
   $('#topbar')!.innerHTML = `
     <a class="mobile-brand" href="#/today" aria-label="QSwipe home"><img src="./brand.svg" width="30" height="30" alt=""><strong>QSwipe</strong></a>
     <div class="crumbs"><span class="eyebrow">${esc(c.name)}</span><strong>${esc(page.label)}</strong></div>
-    <div class="top-actions">
+    <div class="top-actions"><a class="btn sm secure-entry" href="/staging/" aria-label="Open verified staging workspace">${icon('shield')}<span>Staging</span></a>
       <button class="search-btn" type="button" data-action="open-palette" aria-label="Search and commands (${modKey} K)">${icon('search')}<span class="label-text">Search…</span><kbd>${modKey} K</kbd></button>
       <button class="icon-btn" type="button" data-action="scan" aria-label="Scan a QR code" title="Scan QR">${icon('scan')}</button>
       <button class="icon-btn theme-toggle" type="button" data-action="toggle-theme" aria-label="Switch to ${dark ? 'light' : 'dark'} theme">${icon(dark ? 'sun' : 'moon')}</button>

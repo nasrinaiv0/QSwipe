@@ -73,6 +73,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - run: npm ci
+      - run: npm run build
       - name: Install isolated pinned browser test dependency
         run: npm install --prefix "$RUNNER_TEMP/qswipe-browser" --no-audit --no-fund playwright@1.56.1
       - name: Run staging browser regression and render fictional previews
@@ -82,10 +84,11 @@ jobs:
           export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/p5-browser.mjs
           QSWIPE_P6_BROWSER=1 node test/browser/p5-browser.mjs
+          QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 node test/browser/p5-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qswipe-p6-rendered-previews
-          path: p6-previews/*.png
+          name: qswipe-r01-rendered-previews
+          path: adapter-previews/*.png
           if-no-files-found: warn
           retention-days: 7

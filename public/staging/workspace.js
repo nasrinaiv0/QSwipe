@@ -1,3 +1,4 @@
+import {createAttendanceAdapter} from './attendance-adapter.js';
 import {CorrectionQueue} from './sync-queue.js';
 import {DraftVault,validateVaultItems} from './draft-vault.js';
 const $=s=>document.querySelector(s);
@@ -22,6 +23,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
  const canCheck=()=>{const p=person();return !!p&&!p.isOwn&&grants.some(g=>g.unitId===p.unit_id);};
  const online=()=>navigator.onLine!==false;
  const validContext=()=>!!current&&person()?.id===current.rosterId&&selected()?.sessionId===current.sessionId;
+ const adapter=createAttendanceAdapter({call,context:()=>validContext()?{sessionId:current.sessionId,rosterId:current.rosterId,version:current.currentVersion,own:person().isOwn===true,manager:canCheck(),locked:busy||queue.busy||vaultBusy}:null,refresh:loadDetails,refreshReport:loadSessions,notify:say});
  async function call(path,body,token=getToken()){
   if(!token)throw Object.assign(Error('AUTH_REQUIRED'),{status:401});
   const r=await fetch('/api/staging/'+path,{method:body?'POST':'GET',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -31,6 +33,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
   return data;
  }
  function network(){
+  adapter.update();
   const n=$('#p5-network');n.textContent=online()?'Online':'Offline · drafts only';n.dataset.state=online()?'online':'offline';
   $('#p5-sync').disabled=!online()||queue.busy||busy||vaultBusy||vaultDirty||!queue.items.some(i=>i.state!=='blocked');
   $('#p5-refresh').disabled=!online()||busy||!person();
@@ -64,13 +67,13 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
   finally{if(g===identityEpoch){vaultBusy=false;network();}}
  }
  function resetInbox(){inboxEpoch++;inboxBusy=false;inboxCursor=null;inboxRows=[];$('#p6-inbox-rows').replaceChildren();inboxSay('Load pending requests in the selected workspace.');}
- function clearDetails(){current=null;$('#p5-details').classList.add('hidden');$('#p5-inbox').replaceChildren();$('#p5-history').replaceChildren();$('#p5-current').textContent='—';$('#p5-version').textContent='—';$('#p5-pending').textContent='—';}
- function resetSelection(){resetInbox();epoch++;busy=false;people=[];sessions=[];clearDetails();$('#p5-person').replaceChildren(new Option('Choose employee',''));$('#p5-session').replaceChildren(new Option('Choose session',''));$('#p5-session').disabled=true;say('Load the authorized roster to begin.');network();}
- function clear(){identityEpoch++;vault?.lock();vaultDirty=false;vaultBusy=false;p6=false;$('#p6-passphrase').value='';$('#p6-unlock').classList.remove('hidden');$('#p6-delete').classList.add('hidden');vaultSay('Vault locked · memory-only queue.');$('#p6-vault').classList.add('hidden');$('#p6-inbox').classList.add('hidden');owner=null;grants=[];enabled=false;queue.clear();ambiguous.clear();resetSelection();drawQueue();$('#p5-workspace').classList.add('hidden');}
- function bind(who,active,securityEnabled=false){
+ function clearDetails(){current=null;adapter.selection();$('#p5-details').classList.add('hidden');$('#p5-inbox').replaceChildren();$('#p5-history').replaceChildren();$('#p5-current').textContent='—';$('#p5-version').textContent='—';$('#p5-pending').textContent='—';}
+ function resetSelection(){adapter.report([]);resetInbox();epoch++;busy=false;people=[];sessions=[];clearDetails();$('#p5-person').replaceChildren(new Option('Choose employee',''));$('#p5-session').replaceChildren(new Option('Choose session',''));$('#p5-session').disabled=true;say('Load the authorized roster to begin.');network();}
+ function clear(){adapter.clear();identityEpoch++;vault?.lock();vaultDirty=false;vaultBusy=false;p6=false;$('#p6-passphrase').value='';$('#p6-unlock').classList.remove('hidden');$('#p6-delete').classList.add('hidden');vaultSay('Vault locked · memory-only queue.');$('#p6-vault').classList.add('hidden');$('#p6-inbox').classList.add('hidden');owner=null;grants=[];enabled=false;queue.clear();ambiguous.clear();resetSelection();drawQueue();$('#p5-workspace').classList.add('hidden');}
+ function bind(who,active,securityEnabled=false,adapterEnabled=false){
   const key=getProject()+':'+who.userId;
   if(key!==owner){clear();}
-  owner=key;queue.bind(key);grants=Array.isArray(who.grants)?who.grants:[];enabled=active===true;p6=enabled&&securityEnabled===true;resetSelection();$('#p5-workspace').classList.toggle('hidden',!enabled);$('#p6-vault').classList.toggle('hidden',!p6);$('#p6-inbox').classList.toggle('hidden',!p6||!grants.length);drawQueue();
+  owner=key;queue.bind(key);grants=Array.isArray(who.grants)?who.grants:[];enabled=active===true;p6=enabled&&securityEnabled===true;resetSelection();$('#p5-workspace').classList.toggle('hidden',!enabled);$('#p6-vault').classList.toggle('hidden',!p6);$('#p6-inbox').classList.toggle('hidden',!p6||!grants.length);adapter.bind(enabled&&p6&&adapterEnabled);drawQueue();
  }
  async function loadInbox(more=false){
   if(!p6||!owner||!online()||inboxBusy||!grants.length)return;
@@ -110,13 +113,13 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
  $('#p6-delete').addEventListener('click',()=>{if(!vault?.unlocked||vaultBusy||queue.busy)return;if(!confirm('Delete encrypted drafts from this device? A previously submitted correction may still exist on the server.'))return;try{vault.delete();queue.clear();queue.bind(owner);vaultDirty=false;$('#p6-unlock').classList.remove('hidden');$('#p6-delete').classList.add('hidden');vaultSay('Vault deleted · memory-only queue.');drawQueue();}catch{vaultSay('Unable to delete vault.');}});
  function roster(rows){if(!enabled||!owner)return;resetSelection();people=rows.filter(p=>p&&typeof p.id==='string');for(const p of people)$('#p5-person').append(new Option(p.display_name_snapshot+(p.isOwn?' (you)':''),p.id));say(people.length?'Choose a person to load attendance sessions.':'No authorized people.');network();}
  async function loadSessions(){
-  const e=++epoch,p=person();busy=true;current=null;sessions=[];clearDetails();$('#p5-session').replaceChildren(new Option('Choose session',''));$('#p5-session').disabled=true;network();
+  const e=++epoch,p=person();busy=true;current=null;sessions=[];adapter.report([]);clearDetails();$('#p5-session').replaceChildren(new Option('Choose session',''));$('#p5-session').disabled=true;network();
   if(!p||!online()){busy=false;say('Connect to load authorized sessions.');network();return;}
   try{
    const d=await call('sessions?roster_id='+encodeURIComponent(p.id));
    if(!same(e)||person()?.id!==p.id)return;
    if(d.rosterId!==p.id||!Array.isArray(d.sessions))throw Error('INVALID_RESPONSE');
-   sessions=d.sessions;for(const s of sessions)$('#p5-session').append(new Option(fmt(s.opensAt)+' · '+pretty(s.status),s.sessionId));
+   sessions=d.sessions;adapter.report(sessions,true);for(const s of sessions)$('#p5-session').append(new Option(fmt(s.opensAt)+' · '+pretty(s.status),s.sessionId));
    $('#p5-session').disabled=!sessions.length;say(sessions.length?'Select an attendance session.':'No recent authorized sessions.');
   }catch(err){if(same(e))say('Unable to load sessions. Check staging access and connectivity.');}
   finally{if(same(e)){busy=false;network();}}
@@ -148,7 +151,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
    if(r.outcome!=='pending')row.append(node('p',fmt(r.decidedAt)+' · '+pretty(r.decisionReason)+' · resulting v'+r.resultingVersion,'p5-small'));
    history.append(row);
   }
-  drawQueue();network();
+  sessions=sessions.map(s=>s.sessionId===data.sessionId?{...s,status:data.currentStatus,version:data.currentVersion}:s);for(const option of $('#p5-session').options){const s=sessions.find(x=>x.sessionId===option.value);if(s)option.textContent=fmt(s.opensAt)+' · '+pretty(s.status);}adapter.report(sessions,true);drawQueue();network();
  }
  async function loadDetails(){
   const e=++epoch,p=person(),s=selected();busy=true;clearDetails();network();
@@ -197,7 +200,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
   if(result.sent&&selected())await loadDetails();
  });
  window.addEventListener('online',network);window.addEventListener('offline',network);
- window.addEventListener('beforeunload',e=>{if((queue.items.length&&(!vault?.unlocked||vaultDirty||vaultBusy))||ambiguous.size){e.preventDefault();e.returnValue='';}});
+ window.addEventListener('beforeunload',e=>{if((queue.items.length&&(!vault?.unlocked||vaultDirty||vaultBusy))||ambiguous.size||adapter.hasPending()){e.preventDefault();e.returnValue='';}});
  window.addEventListener('pagehide',()=>{clear();});
- return {bind,roster,resetSelection,clear,hasDrafts:()=>(queue.items.length>0&&(!vault?.unlocked||vaultDirty||vaultBusy))||ambiguous.size>0};
+ return {bind,roster,resetSelection,clear,hasDrafts:()=>(queue.items.length>0&&(!vault?.unlocked||vaultDirty||vaultBusy))||ambiguous.size>0||adapter.hasPending()};
 }

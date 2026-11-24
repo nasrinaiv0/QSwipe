@@ -26,9 +26,9 @@ export const welcome: View = {
         <div class="onboard-brand"><img src="./brand.svg" alt=""><div><strong>QSwipe</strong><small>Attendance, commitments and team onboarding</small></div></div>
         ${back ? `<a class="btn ghost" href="#/today">${icon('chevronLeft')}Back to ${esc(S.cfg().name)}</a>` : ''}
       </div>
-      <div class="onboard-grid">
+      <section class="card" aria-label="Authenticated workspace"><div class="card-head"><div><h2>Verified workspace</h2><p class="sub">Invited test accounts only. Open the server-authorized staging workspace instead of creating a local demo.</p></div><a class="btn primary" href="/staging/">Sign in to staging</a></div></section><div class="onboard-grid">
         <section class="card" aria-labelledby="create-h">
-          <div class="card-head"><div><h2 id="create-h">${icon('building')}Create a workspace</h2><p class="sub">For a team leader, manager or organization owner.</p></div></div>
+          <div class="card-head"><div><h2 id="create-h">${icon('building')}Create a demo workspace</h2><p class="sub">For a team leader, manager or organization owner.</p></div></div>
           <form class="stack" id="create-form" autocomplete="off" novalidate>
             ${field({ id: 'ws-name', label: 'Workspace name', control: '<input class="input" id="ws-name" required minlength="2" maxlength="60" placeholder="e.g. your company, school or office">' })}
             <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong><small>${esc(PRESETS[k].titles.slice().reverse().join(' → '))}</small></button>`).join('')}</div><span class="hint">Sets default titles and labels. You can rename everything later.</span></div>
