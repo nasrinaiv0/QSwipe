@@ -30,7 +30,13 @@ try{
   assert.equal(await page.locator('.achievement.unlocked').count(),2);await page.screenshot({path:'team-play-previews/'+name+'-results.png',fullPage:true});
   await page.reload();await page.locator('.challenge-players').waitFor();assert.equal(await page.locator('.engage-rank').count(),2);assert.equal(await page.locator('.achievement.unlocked').count(),2);
   assert.equal(await page.evaluate(()=>{const d=JSON.parse(localStorage.getItem('qswipe-v3'));return d.workspaces[d.activeId].playScores.length;}),2);
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.locator('form[data-submit=challenge-start] button').click();
+  for(let i=0;i<10;i++)await page.locator('[data-action=challenge-answer]').first().click();
+  await page.getByText('Team round complete!').waitFor();assert.match(await page.locator('.challenge-intro [role=status]').textContent(),/^0 scored/);
+  await page.goto(origin+'/#/welcome');await page.locator('#ws-name').fill('Other Team');await page.locator('#owner-name').fill('Taylor');await page.locator('#create-form button[type=submit]').click();
+  await page.locator('.engage-summary').waitFor();await page.goto(origin+'/#/play/challenge');await page.locator('.challenge-players').waitFor();assert.equal(await page.locator('.engage-rank').count(),0);assert.equal(await page.locator('.achievement.unlocked').count(),0);
+  assert.deepEqual(errors,[]);
   await ctx.close();console.log('Team play browser passed:',name);
  }
 }finally{await browser?.close();server.kill();}
