@@ -8,11 +8,20 @@ import { kpi, options, pageHead, type View } from './common';
 
 type Day = RosterStats & { date: string };
 
-const dateScope = (date: string) => historicalScope(S.ws(), S.me(), date, S.session.ui.reportBranch);
+let dateCache = new Map<string,Person[]>(), eligibleCache = new Map<string,Set<string>>();
+const clearReportCache = () => { dateCache=new Map();eligibleCache=new Map(); };
+const dateScope = (date: string) => {
+  if(!dateCache.has(date))dateCache.set(date,historicalScope(S.ws(),S.me(),date,S.session.ui.reportBranch));
+  return dateCache.get(date)!;
+};
+const eligibleIds = (date: string) => {
+  if(!eligibleCache.has(date))eligibleCache.set(date,new Set(dateScope(date).map(p=>p.id)));
+  return eligibleCache.get(date)!;
+};
 const datesFor = (count: number) => reportDates(S.ws(), S.session.today, count);
 const scopePeople = (dates: string[]) => historicalPeople(S.ws(), S.me(), dates, S.session.ui.reportBranch);
 const seriesFor = (dates: string[]) => historicalSeries(S.ws(), S.me(), dates, S.session.ui.reportBranch);
-const eligibleDates = (p: Person, dates: string[]) => dates.filter(d=>dateScope(d).some(x=>x.id===p.id));
+const eligibleDates = (p: Person, dates: string[]) => dates.filter(d=>eligibleIds(d).has(p.id));
 const reportBranch = (p: Person, dates: string[]) => { const d=eligibleDates(p,dates).at(-1);return d?historicalBranch(S.ws(),p,d):''; };
 
 function leaders(people: Person[]): Person[] {
@@ -56,7 +65,7 @@ function register(people: Person[], dates: string[]): string {
   const { reportSort: sort, reportQuery } = S.session.ui;
   const recordsFor = (d: string) => S.ws().attendance[d];
   const q = reportQuery.trim().toLowerCase();
-  const rows = people.filter(p => !q || `${p.name} ${reportBranch(p,dates)}`.toLowerCase().includes(q)).map(p => ({ p, branch: reportBranch(p,dates), ...personSummary(p, recordsFor, eligibleDates(p,dates)), today: dateScope(S.session.today).some(x=>x.id===p.id)?statusOf(S.records(S.session.today)[p.id]):undefined }));
+  const rows = people.filter(p => !q || `${p.name} ${reportBranch(p,dates)}`.toLowerCase().includes(q)).map(p => ({ p, branch: reportBranch(p,dates), ...personSummary(p, recordsFor, eligibleDates(p,dates)), today: eligibleIds(S.session.today).has(p.id)?statusOf(S.records(S.session.today)[p.id]):undefined }));
   type Row = (typeof rows)[number];
   const get = (r: Row): string | number => {
     const k = sort.key;
@@ -77,6 +86,7 @@ const COLS: [string, string, boolean][] = [['name', 'Name', false], ['branch', '
 
 export const reports: View = {
   render() {
+    clearReportCache();
     const cfg = S.cfg();
     if (!S.can('reports.view')) return `${pageHead({ title: 'Reports' })}<section class="card">${lockedPanel({ title: 'Reports are locked for your level', need: cfg.titles[Math.min(3, requiredLevel(S.ws().policy, 'reports.view')) as 0] })}</section>`;
     const ui = S.session.ui, lead = leaders(S.visiblePeople());
@@ -122,6 +132,7 @@ export const reports: View = {
         <div class="table-wrap"><table class="table"><thead><tr>${COLS.map(([k, l, num]) => `<th ${num ? 'class="num"' : ''} aria-sort="${ui.reportSort.key === k ? (ui.reportSort.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-action="rep-sort" data-key="${k}">${l}</button></th>`).join('')}</tr></thead><tbody id="rep-body">${register(people, dates)}</tbody></table></div></section>`;
   },
   mount(root) {
+    clearReportCache();
     const el = $('#trend-chart', root);
     if (!el) return;
     const ui = S.session.ui;
@@ -153,6 +164,7 @@ export const reports: View = {
       bus.refresh();
     },
     'rep-export': () => {
+      clearReportCache();
       if (!S.can('reports.export')) return;
       const cfg = S.cfg();
       const dates = datesFor(S.session.ui.reportRange);
@@ -168,6 +180,7 @@ export const reports: View = {
   inputs: {
     'rep-branch': el => { S.session.ui.reportBranch = (el as HTMLSelectElement).value; bus.refresh(); },
     'rep-q': el => {
+      clearReportCache();
       S.session.ui.reportQuery = (el as HTMLInputElement).value;
       $('#rep-body')!.innerHTML = register(scopePeople(datesFor(S.session.ui.reportRange)), datesFor(S.session.ui.reportRange));
     },
