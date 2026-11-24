@@ -1,4 +1,5 @@
 /** Verified admin workflows. No demo state, stored credentials or local writes. */
+import {createWorkforce} from './workforce.js';
 const $=s=>document.querySelector(s);
 const hide=(s,v=true)=>$(s).classList.toggle('hidden',v);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -9,12 +10,13 @@ export function createOnboarding({getToken,refreshIdentity,onAuthExpired}){
  let who=null,enabled=false,epoch=0,busy=false,pending=null,loaded=false;
  const say=t=>{$('#onboarding-status').textContent=t;};
  const scope=()=>({workspaceId:$('#workspace').value,unitId:$('#onboarding-unit').value});
+ const workforce=createWorkforce({getToken,scope,onAuthExpired});
  function clearSecret(){hide('#invite-result');$('#invite-created-id').value='';$('#invite-created-code').value='';$('#invite-expires').textContent='';}
- function clearDetail(){loaded=false;hide('#onboarding-detail');$('#onboarding-zone').textContent='—';for(const id of ['#onboarding-employees','#onboarding-invitations','#onboarding-shifts'])$(id).replaceChildren();}
+ function clearDetail(){workforce.reset();loaded=false;hide('#onboarding-detail');$('#onboarding-zone').textContent='—';for(const id of ['#onboarding-employees','#onboarding-invitations','#onboarding-shifts'])$(id).replaceChildren();}
  function controls(){const lock=busy||!!pending||!navigator.onLine;for(const el of $('#onboarding-panel').querySelectorAll('form button,[data-onboarding-action],#onboarding-load'))el.disabled=lock;$('#onboarding-retry').disabled=busy||!navigator.onLine;hide('#onboarding-retry',!pending);$('#onboarding-unit').disabled=busy||!!pending;}
  function resetScope(){epoch++;busy=false;pending=null;clearSecret();clearDetail();$('#invite-code').value='';const ws=$('#workspace').value,ids=new Set((who?.memberships??[]).filter(m=>m.workspaceId===ws).map(m=>m.id));const units=[...new Set((who?.grants??[]).filter(g=>ids.has(g.membershipId)&&['level_3','org_admin'].includes(g.role)).map(g=>g.unitId))];$('#onboarding-unit').replaceChildren(...units.map(u=>new Option('Unit '+u.slice(0,8),u)));hide('#onboarding-admin',!units.length);controls();}
  function clear(){epoch++;who=null;enabled=false;pending=null;busy=false;clearSecret();clearDetail();for(const i of $('#onboarding-panel').querySelectorAll('input'))i.value='';$('#onboarding-unit').replaceChildren();say('');hide('#onboarding-panel');controls();}
- function bind(identity,active){clear();who=identity;enabled=active===true;hide('#onboarding-panel',!enabled);if(enabled)resetScope();}
+ function bind(identity,active,workforceEnabled=false){clear();workforce.bind(active&&workforceEnabled);who=identity;enabled=active===true;hide('#onboarding-panel',!enabled);if(enabled)resetScope();}
  async function call(command,token){const r=await fetch('/api/staging/onboarding',{method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(command)});let d;try{d=await r.json();}catch{throw Object.assign(Error('INVALID_RESPONSE'),{status:r.ok?502:r.status});}if(r.status===401&&token===getToken())onAuthExpired?.();if(!r.ok)throw Object.assign(Error('REQUEST_REJECTED'),{status:r.status});return d;}
  function row(name,state){const r=node('div',undefined,'p5-row'),pill=node('span',state,'p5-pill');pill.dataset.state=state;r.append(node('strong',name),pill);return r;}
  function action(label,command){const b=button(label,()=>{if(!confirm(label+'? This action is recorded in the audit ledger.'))return;mutate(command);});b.dataset.onboardingAction='1';return b;}
@@ -45,5 +47,5 @@ export function createOnboarding({getToken,refreshIdentity,onAuthExpired}){
  $('#onboarding-schedule').addEventListener('submit',e=>{e.preventDefault();mutate({action:'schedule',localStart:$('#shift-start').value,localEnd:$('#shift-end').value,startOffset:Number($('#shift-start-offset').value),endOffset:Number($('#shift-end-offset').value)});});
  $('#onboarding-retry').addEventListener('click',()=>mutate(null,true));$('#invite-hide').addEventListener('click',clearSecret);
  window.addEventListener('online',controls);window.addEventListener('offline',()=>{clearSecret();controls();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearSecret();$('#invite-code').value='';}});
- return {bind,clear,resetScope,hasPending:()=>!!pending};
+ return {bind,clear,resetScope,hasPending:()=>!!pending||workforce.hasPending()};
 }
