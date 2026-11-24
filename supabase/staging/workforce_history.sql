@@ -334,7 +334,7 @@ $p5$;
 
 create function qs_stg_private.workforce_command(p_body jsonb) returns jsonb language plpgsql security definer set search_path='' as $wf$
 declare
- actor uuid:=auth.uid(); op text; ws uuid; unit uuid; req uuid; target uuid; dest uuid; roster_id uuid; session_id uuid;
+ actor uuid:=auth.uid(); op text; ws uuid; unit uuid; req uuid; target uuid; dest uuid; requested_roster uuid; requested_session uuid;
  n timestamptz; enabled boolean; prior qs_stg_private.workforce_events%rowtype; fingerprint bytea; result jsonb; base jsonb;
  allowed text[]; expected integer; v integer; root uuid; s qs_stg_private.attendance_sessions%rowtype;
  r public.qs_stg_roster_assignments%rowtype; m public.qs_stg_memberships%rowtype; new_roster uuid; new_session uuid;
@@ -353,7 +353,7 @@ begin
  when 'holiday' then array['action','workspaceId','unitId','requestId','localDate','expectedVersion','category']
  else null end;
  if allowed is null or not(p_body ?& allowed) or exists(select 1 from jsonb_object_keys(p_body) k where not(k=any(allowed))) or exists(select 1 from jsonb_each(p_body) e where e.value='null'::jsonb) then raise exception 'QS_INVALID';end if;
- begin ws:=(p_body->>'workspaceId')::uuid;unit:=(p_body->>'unitId')::uuid;req:=(p_body->>'requestId')::uuid;session_id:=(p_body->>'sessionId')::uuid;roster_id:=(p_body->>'rosterId')::uuid;dest:=(p_body->>'destinationUnitId')::uuid;expected:=(p_body->>'expectedVersion')::integer;count_weeks:=(p_body->>'weeks')::integer;exception when invalid_text_representation or numeric_value_out_of_range then raise exception 'QS_INVALID';end;
+ begin ws:=(p_body->>'workspaceId')::uuid;unit:=(p_body->>'unitId')::uuid;req:=(p_body->>'requestId')::uuid;requested_session:=(p_body->>'sessionId')::uuid;requested_roster:=(p_body->>'rosterId')::uuid;dest:=(p_body->>'destinationUnitId')::uuid;expected:=(p_body->>'expectedVersion')::integer;count_weeks:=(p_body->>'weeks')::integer;exception when invalid_text_representation or numeric_value_out_of_range then raise exception 'QS_INVALID';end;
  select g.enabled into enabled from qs_stg_private.workforce_gate g where singleton for share;
  if enabled is distinct from true then raise exception 'QS_DISABLED';end if;
  -- Existing list performs live session, AAL2, exact unit and workspace locking.
@@ -385,7 +385,7 @@ begin
  -- Recheck after idempotency lock.
  perform qs_stg_private.onboarding_command(jsonb_build_object('action','list','workspaceId',ws,'unitId',unit));
  if op in ('edit','cancel','leave','cancel_leave') then
-  select a.* into s from qs_stg_private.attendance_sessions a join qs_stg_private.managed_shifts h on h.session_id=a.id where a.id=workforce_command.session_id and a.workspace_id=ws and a.unit_id=unit for update of a;
+  select a.* into s from qs_stg_private.attendance_sessions a join qs_stg_private.managed_shifts h on h.session_id=a.id where a.id=requested_session and a.workspace_id=ws and a.unit_id=unit for update of a;
   if not found or s.opens_at<=clock_timestamp() or exists(select 1 from qs_stg_private.shift_retirements t where t.session_id=s.id) or exists(select 1 from qs_stg_private.attendance_current c where c.session_id=s.id) or exists(select 1 from qs_stg_private.attendance_passes q where q.session_id=s.id) then raise exception 'QS_CONFLICT';end if;
  end if;
  if op in ('repeat','edit') then
@@ -412,7 +412,7 @@ begin
  elsif op='transfer' then
   if dest is null or dest=unit then raise exception 'QS_INVALID';end if;
   perform qs_stg_private.onboarding_command(jsonb_build_object('action','list','workspaceId',ws,'unitId',dest));
-  select * into r from public.qs_stg_roster_assignments a where a.id=roster_id and a.workspace_id=ws and a.unit_id=unit and a.status='active' for update;
+  select * into r from public.qs_stg_roster_assignments a where a.id=requested_roster and a.workspace_id=ws and a.unit_id=unit and a.status='active' for update;
   if not found then raise exception 'QS_FORBIDDEN';end if;
   select * into m from public.qs_stg_memberships a where a.id=r.membership_id and a.status='active' and a.starts_at<=clock_timestamp() and (a.ends_at is null or a.ends_at>clock_timestamp()) for update;
   if not found or m.user_id=actor or exists(select 1 from public.qs_stg_role_assignments g where g.membership_id=m.id) or (select count(*) from public.qs_stg_roster_assignments a where a.membership_id=m.id and a.status='active')<>1 or exists(select 1 from public.qs_stg_roster_assignments a where a.membership_id=m.id and a.unit_id=dest) then raise exception 'QS_FORBIDDEN';end if;
@@ -421,13 +421,13 @@ begin
   insert into qs_stg_private.roster_transfers values(r.id,new_roster,clock_timestamp());
   result:=jsonb_build_object('oldRosterId',r.id,'newRosterId',new_roster,'destinationUnitId',dest);
  elsif op in ('leave','cancel_leave') then
-  if not exists(select 1 from qs_stg_private.shift_eligibility e where e.session_id=s.id and e.roster_id=roster_id) then raise exception 'QS_FORBIDDEN';end if;
-  select * into old_leave from qs_stg_private.shift_leave l where l.session_id=s.id and l.roster_id=roster_id;
+  if not exists(select 1 from qs_stg_private.shift_eligibility e where e.session_id=s.id and e.roster_id=requested_roster) then raise exception 'QS_FORBIDDEN';end if;
+  select * into old_leave from qs_stg_private.shift_leave l where l.session_id=s.id and l.roster_id=requested_roster;
   if expected is distinct from coalesce(old_leave.version,0) or (op='cancel_leave' and old_leave.active is distinct from true) or (op='leave' and old_leave.active is true) then raise exception 'QS_CONFLICT';end if;
   category:=case when op='leave' then p_body->>'category' else old_leave.category end;
   if category not in ('approved_leave','authorized_excuse') then raise exception 'QS_INVALID';end if;
-  insert into qs_stg_private.shift_leave values(s.id,roster_id,op='leave',category,coalesce(old_leave.version,0)+1) on conflict on constraint shift_leave_pkey do update set active=excluded.active,category=excluded.category,version=excluded.version;
-  result:=jsonb_build_object('sessionId',s.id,'rosterId',roster_id,'version',coalesce(old_leave.version,0)+1,'active',op='leave','category',category);
+  insert into qs_stg_private.shift_leave values(s.id,requested_roster,op='leave',category,coalesce(old_leave.version,0)+1) on conflict on constraint shift_leave_pkey do update set active=excluded.active,category=excluded.category,version=excluded.version;
+  result:=jsonb_build_object('sessionId',s.id,'rosterId',requested_roster,'version',coalesce(old_leave.version,0)+1,'active',op='leave','category',category);
  elsif op='holiday' then
   if p_body->>'localDate' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then raise exception 'QS_INVALID';end if;
   day:=(p_body->>'localDate')::date;category:=p_body->>'category';
