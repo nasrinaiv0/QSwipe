@@ -1,5 +1,6 @@
 /** Preview-only auth UI: no localStorage, sessionStorage, role picker or service-role secret. */
 import { listTotp, enrollTotp, verifyTotp } from './mfa.js';
+import { createAdvanced } from './advanced.js';
 import { createOnboarding } from './onboarding.js';
 import { createWorkspace } from './workspace.js';
 const $ = selector => document.querySelector(selector);
@@ -12,8 +13,9 @@ let mfaBusy = false;
 let loginBusy = false;
 let pendingFactor = null;
 let sessionVersion = 0;
-const admin=createOnboarding({getToken:()=>bearer,refreshIdentity:async()=>{const token=bearer,version=sessionVersion;try{await refreshWorkspace(token,version);}catch{if(token===bearer){sessionVersion++;bearer=null;admin.clear();p5.clear();clearRoster();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}}},onAuthExpired:()=>{sessionVersion++;bearer=null;admin.clear();p5.clear();clearMfa();clearRoster();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again.');}});
-const p5=createWorkspace({getToken:()=>bearer,getProject:()=>config?.supabaseUrl,onAuthExpired:()=>{sessionVersion++;bearer=null;workspaceIds.clear();clearMfa();clearRoster();admin.clear();p5.clear();$('#grants').replaceChildren();$('#workspace').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again. Memory drafts were cleared; saved encrypted drafts remain locked.');}});
+const advanced=createAdvanced({getToken:()=>bearer,onAuthExpired:()=>{sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearMfa();clearRoster();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again.');}});
+const admin=createOnboarding({getToken:()=>bearer,refreshIdentity:async()=>{const token=bearer,version=sessionVersion;try{await refreshWorkspace(token,version);}catch{if(token===bearer){sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearRoster();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}}},onAuthExpired:()=>{sessionVersion++;bearer=null;advanced.clear();admin.clear();p5.clear();clearMfa();clearRoster();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again.');}});
+const p5=createWorkspace({getToken:()=>bearer,getProject:()=>config?.supabaseUrl,onAuthExpired:()=>{sessionVersion++;bearer=null;workspaceIds.clear();clearMfa();clearRoster();advanced.clear();admin.clear();p5.clear();$('#grants').replaceChildren();$('#workspace').replaceChildren();show('login-panel');say('#login-status','Session expired. Sign in again. Memory drafts were cleared; saved encrypted drafts remain locked.');}});
 function clearRoster() { rosterRequest++; $('#roster').replaceChildren();p5.resetSelection(); }
 
 function show(which) {
@@ -80,6 +82,7 @@ async function refreshWorkspace(token, version) {
   clearRoster();
   p5.bind(who,config.workspaceEnabled,config.securityEnabled,config.adapterEnabled);
   admin.bind(who,config.onboardingEnabled,config.workforceEnabled);
+  advanced.bind(who,config.advancedEnabled);
   say('#roster-status',workspaceIds.size?'Select a workspace to view authorized roster entries.':'No active workspace membership. Contact the staging administrator.');
   return true;
 }
@@ -108,7 +111,7 @@ $('#mfa-verify').addEventListener('submit',e=>{
     try{
       if(await refreshWorkspace(upgraded,version))say('#mfa-status','Authenticator verified. Access is determined by the server.');
     }catch{
-      if(version===sessionVersion && bearer===upgraded){bearer=null;sessionVersion++;admin.clear();p5.clear();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}
+      if(version===sessionVersion && bearer===upgraded){bearer=null;sessionVersion++;advanced.clear();admin.clear();p5.clear();show('login-panel');say('#login-status','Session revalidation failed. Sign in again.');}
     }
   });
 });
@@ -140,9 +143,9 @@ $('#otp-verify').addEventListener('submit',async e => {
     if(!await refreshWorkspace(token,version))return;
     show('workspace-panel');
     await mfaAction(refreshMfa);
-  } catch { if(version===sessionVersion){bearer=null;admin.clear();p5.clear();clearMfa();say('#login-status','Sign-in was not accepted. Try again.');} } finally {loginBusy=false;}
+  } catch { if(version===sessionVersion){bearer=null;advanced.clear();admin.clear();p5.clear();clearMfa();say('#login-status','Sign-in was not accepted. Try again.');} } finally {loginBusy=false;}
 });
-$('#workspace').addEventListener('change',()=>{admin.resetScope();clearRoster();say('#roster-status','Load the selected workspace roster.');});
+$('#workspace').addEventListener('change',()=>{admin.resetScope();advanced.resetScope();clearRoster();say('#roster-status','Load the selected workspace roster.');});
 $('#load-roster').addEventListener('click',async()=>{
   const id=$('#workspace').value;
   if(!workspaceIds.has(id)) return say('#roster-status','Workspace not authorized.');
@@ -159,16 +162,16 @@ $('#load-roster').addEventListener('click',async()=>{
         const td=document.createElement('td');td.textContent=text;tr.append(td);
       }body.append(tr);
     }
-    p5.roster(data.rows);
+    p5.roster(data.rows);advanced.setRoster(data.rows);
     say('#roster-status',`${data.rows.length} authorized roster entr${data.rows.length===1?'y':'ies'}.`);
   }catch(e){if(request===rosterRequest && session===bearer) say('#roster-status',`Roster request denied: ${e.message}`);}
 });
 $('#logout').addEventListener('click',async()=>{
-  if((p5.hasDrafts()||admin.hasPending())&&!confirm('Sign out and clear unsaved drafts? Saved encrypted drafts remain locked. A timed-out request may have reached the server.'))return;
-  admin.clear();p5.clear();sessionVersion++;const token=bearer;bearer=null;clearMfa();workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
+  if((p5.hasDrafts()||admin.hasPending()||advanced.hasPending())&&!confirm('Sign out and clear unsaved drafts? Saved encrypted drafts remain locked. A timed-out request may have reached the server.'))return;
+  advanced.clear();admin.clear();p5.clear();sessionVersion++;const token=bearer;bearer=null;clearMfa();workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
   show('login-panel');say('#login-status','Signed out from this preview.');
   if(token){try{await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(8000),headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`}});}catch{}}
 });
-window.addEventListener('pagehide',()=>{sessionVersion++;bearer=null;clearMfa();clearRoster();admin.clear();p5.clear();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();$('#email').value='';$('#code').value='';accountEmail='';});
+window.addEventListener('pagehide',()=>{sessionVersion++;bearer=null;clearMfa();clearRoster();advanced.clear();admin.clear();p5.clear();workspaceIds.clear();$('#workspace').replaceChildren();$('#grants').replaceChildren();$('#email').value='';$('#code').value='';accountEmail='';});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 init();
