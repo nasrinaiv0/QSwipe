@@ -43,7 +43,7 @@ try{
    const days=[0,1,2,3,4,5,6];w.createdAt=new Date(iso(-2)+'T12:00:00').getTime();w.config.days=days;w.people=[owner,fresh];
    w.rosterHistory=[{date:iso(-2),days,people:[owner,old]},{date:iso(-1),days,people:[owner,fresh]}];
    w.attendance={[iso(-2)]:{[old.id]:{s:'present',at:Date.now()-172800000,by:owner.id}},[iso(-1)]:{[fresh.id]:{s:'absent',at:Date.now()-86400000,by:owner.id}}};
-   localStorage.setItem('qswipe-v3',JSON.stringify(d));
+   localStorage.setItem('qswipe-v3',JSON.stringify(d));window.dispatchEvent(new StorageEvent('storage',{key:'qswipe-v3'}));
   });
   await page.goto(origin+'/#/reports');await page.reload();await page.locator('#rep-body').waitFor();
   const oldRow=page.locator('#rep-body tr').filter({hasText:'Former member'}),newRow=page.locator('#rep-body tr').filter({hasText:'Current member'});
