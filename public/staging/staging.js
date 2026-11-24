@@ -4,9 +4,11 @@ let config = null;
 let bearer = null;
 let accountEmail = '';
 let workspaceIds = new Set();
+let rosterRequest = 0;
+function clearRoster() { rosterRequest++; $('#roster').replaceChildren(); }
 
 function show(which) {
-  for (const id of ['setup-panel','login-panel','workspace-panel']) $(id).classList.toggle('hidden', id !== which);
+  for (const id of ['setup-panel','login-panel','workspace-panel']) $(`#${id}`).classList.toggle('hidden', id !== which);
 }
 function say(id, message) { $(id).textContent = message; }
 async function result(response) {
@@ -17,13 +19,13 @@ async function result(response) {
 }
 async function authRequest(path, body) {
   return result(await fetch(`${config.supabaseUrl}/auth/v1/${path}`, {
-    method:'POST',cache:'no-store',headers:{apikey:config.publishableKey,'Content-Type':'application/json'},
+    method:'POST',redirect:'error',cache:'no-store',headers:{apikey:config.publishableKey,'Content-Type':'application/json'},
     body: JSON.stringify(body)
   }));
 }
 async function api(path) {
   if (!bearer) throw new Error('Session expired. Sign in again.');
-  return result(await fetch(`/api/staging/${path}`, {cache:'no-store',headers:{Authorization:`Bearer ${bearer}`}}));
+  return result(await fetch(`/api/staging/${path}`, {redirect:'error',cache:'no-store',headers:{Authorization:`Bearer ${bearer}`}}));
 }
 async function init() {
   try {
@@ -63,12 +65,17 @@ $('#otp-verify').addEventListener('submit',async e => {
     say('#roster-status',workspaceIds.size?'Select a workspace to view authorized roster entries.':'No active workspace membership. Contact the staging administrator.');
   } catch (e) { bearer=null;say('#login-status',`Sign-in was not accepted: ${e.message}`); }
 });
+$('#workspace').addEventListener('change',()=>{clearRoster();say('#roster-status','Load the selected workspace roster.');});
 $('#load-roster').addEventListener('click',async()=>{
   const id=$('#workspace').value;
   if(!workspaceIds.has(id)) return say('#roster-status','Workspace not authorized.');
+  clearRoster();
+  const request = rosterRequest;
+  const session = bearer;
   say('#roster-status','Loading…');
   try{
     const data=await api(`roster?workspace_id=${encodeURIComponent(id)}`);
+    if(request!==rosterRequest || session!==bearer || id!==$('#workspace').value) return;
     const body=$('#roster');body.replaceChildren();
     for(const row of data.rows){const tr=document.createElement('tr');
       for(const text of [row.display_name_snapshot,row.position_snapshot,row.unit_id.slice(0,8)]){
@@ -76,10 +83,10 @@ $('#load-roster').addEventListener('click',async()=>{
       }body.append(tr);
     }
     say('#roster-status',`${data.rows.length} authorized roster entr${data.rows.length===1?'y':'ies'}.`);
-  }catch(e){say('#roster-status',`Roster request denied: ${e.message}`);}
+  }catch(e){if(request===rosterRequest && session===bearer) say('#roster-status',`Roster request denied: ${e.message}`);}
 });
 $('#logout').addEventListener('click',async()=>{
-  const token=bearer;bearer=null;workspaceIds.clear();$('#code').value='';$('#roster').replaceChildren();
+  const token=bearer;bearer=null;workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
   show('login-panel');say('#login-status','Signed out from this preview.');
   if(token){try{await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',cache:'no-store',headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`}});}catch{}}
 });
