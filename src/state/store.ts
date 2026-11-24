@@ -1,3 +1,4 @@
+import { initializeHistory, recordRosterChange, recordSameDayEligibility } from '../core/history';
 import { addScore, type PlayScore } from '../core/engagement';
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
@@ -121,6 +122,7 @@ function resetSession() {
 }
 
 export function addWorkspace(w: Workspace): void {
+  initializeHistory(w, session.today);
   data.workspaces[w.id] = w;
   data.activeId = w.id;
   resetSession();
@@ -176,6 +178,7 @@ export function mark(subjectId: string, status: Status, via: 'swipe' | 'pass' | 
   const decision = M.markDecision({ ws: ws(), org: o, actor: me(), subject, records: records(date), date, today: session.today });
   if (!decision.ok) return { ok: false, error: markError(decision.reason, subject), reason: decision.reason };
   const w = ws();
+  recordSameDayEligibility(w, subject!, date, session.today);
   (w.attendance[date] ??= {})[subjectId] = { s: status, at: Date.now(), by: me().id, via: decision.reason === 'self' ? 'self' : via };
   session.lastAction = { id: subjectId, status, at: Date.now(), date };
   audit({ kind: 'mark', subject: subjectId, from: null, to: status, date });
@@ -237,7 +240,9 @@ export function addPerson(input: PersonInput): Result<{ person: Person }> {
   const error = M.placementError(org(), { level: input.level, parentId: input.parentId });
   if (error) return { ok: false, error };
   const person = M.newPerson({ ...input, photo: input.photo ?? undefined, joined: 'manual' });
+  initializeHistory(ws(), session.today);
   ws().people = [...ws().people, person];
+  recordRosterChange(ws(), session.today);
   audit({ kind: 'add', subject: person.id, from: null, to: null });
   persist();
   return { ok: true, person };
@@ -260,7 +265,9 @@ export function updatePerson(id: string, input: PersonInput): Result {
   }
   const updated: Person = { ...current, name: M.cleanText(input.name, 60), position: M.cleanText(input.position, 60), level: input.level, parentId: input.parentId, branch: input.level > 0 ? M.cleanText(input.branch, 40) : '' };
   if (input.photo === null) delete updated.photo; else if (input.photo) updated.photo = input.photo;
+  initializeHistory(w, session.today);
   w.people = w.people.map(p => (p.id === id ? updated : p));
+  recordRosterChange(w, session.today);
   if (placementChanged) audit({ kind: 'move', subject: id, from: null, to: null });
   persist();
   return { ok: true };
@@ -269,14 +276,16 @@ export function updatePerson(id: string, input: PersonInput): Result {
 export function removePerson(id: string): Result<{ snapshot: Person[] }> {
   if (!M.canManagePerson(ws(), org(), me(), id)) return { ok: false, error: 'You can only remove people in your branch.' };
   const snapshot = ws().people;
+  initializeHistory(ws(), session.today);
   ws().people = M.removeFromOrg(snapshot, id);
+  recordRosterChange(ws(), session.today);
   audit({ kind: 'remove', subject: id, from: null, to: null });
   if (session.ui.orgSelected === id) session.ui.orgSelected = null;
   persist();
   return { ok: true, snapshot };
 }
 
-export function restorePeople(snapshot: Person[]) { ws().people = snapshot; persist(); }
+export function restorePeople(snapshot: Person[]) { initializeHistory(ws(), session.today); ws().people = snapshot; recordRosterChange(ws(), session.today); persist(); }
 
 export function newInvite(parentId: string, level: Level, hours: number, maxUses: number): Result<{ invite: Invite }> {
   if (!(parentId === me().id ? can('people.manage') : M.canManagePerson(ws(), org(), me(), parentId))) return { ok: false, error: 'You can only invite people into your own branch.' };
@@ -303,7 +312,9 @@ export function joinWithInvite(code: InviteCode, member: { name: string; positio
       const { receipt } = joinFromInvite(code, member);
       switchWorkspace(existing.id);
       const accepted = acceptReceipt(existing, receipt);
+      initializeHistory(existing, session.today);
       existing.people = [...existing.people, accepted.person];
+      recordRosterChange(existing, session.today);
       accepted.invite.uses++;
       audit({ kind: 'join', subject: accepted.person.id, from: null, to: null });
       persist();
@@ -325,7 +336,9 @@ export function acceptJoin(r: ReceiptCode): Result<{ person: Person }> {
   try {
     const { person, invite } = acceptReceipt(target, r);
     if (!(invite.parentId === me().id ? can('people.manage') : M.canManagePerson(target, org(), me(), invite.parentId))) return { ok: false, error: 'Only someone above that branch can confirm this join.' };
+    initializeHistory(target, session.today);
     target.people = [...target.people, person];
+    recordRosterChange(target, session.today);
     invite.uses++;
     audit({ kind: 'join', subject: person.id, from: null, to: null });
     persist();
@@ -421,7 +434,9 @@ export function resetPolicy() { if (can('settings.access')) { ws().policy = M.de
 
 export function updateConfig(patch: Partial<WorkspaceConfig>): boolean {
   if (!can('settings.workspace')) return false;
+  initializeHistory(ws(), session.today);
   ws().config = M.sanitizeConfig({ ...ws().config, ...patch }, ws().config);
+  recordRosterChange(ws(), session.today);
   persist();
   return true;
 }
