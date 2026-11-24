@@ -240,7 +240,7 @@ begin
   if not found then raise exception 'QS_FORBIDDEN'; end if;
   -- Managed shifts must use the immutable eligibility snapshot, not today's roster.
   if exists(select 1 from qs_stg_private.managed_shifts where session_id=p_session)
-    and (not exists(select 1 from qs_stg_private.onboarding_gate where singleton and enabled)
+    and (not exists(select 1 from qs_stg_private.onboarding_gate gate where gate.singleton and gate.enabled)
       or not exists(select 1 from qs_stg_private.shift_eligibility where session_id=p_session and roster_id=p_roster)) then
     raise exception 'QS_FORBIDDEN';
   end if;
@@ -349,7 +349,7 @@ begin
     join public.qs_stg_roster_assignments r on r.unit_id=s.unit_id and r.workspace_id=s.workspace_id
     where r.id=p_roster and s.opens_at<=clock_timestamp()
       and s.closes_at>=clock_timestamp()-interval '30 days'
-      and (not exists(select 1 from qs_stg_private.managed_shifts h where h.session_id=s.id) or (exists(select 1 from qs_stg_private.onboarding_gate where singleton and enabled) and exists(select 1 from qs_stg_private.shift_eligibility e where e.session_id=s.id and e.roster_id=p_roster)))
+      and (not exists(select 1 from qs_stg_private.managed_shifts h where h.session_id=s.id) or (exists(select 1 from qs_stg_private.onboarding_gate gate where gate.singleton and gate.enabled) and exists(select 1 from qs_stg_private.shift_eligibility e where e.session_id=s.id and e.roster_id=p_roster)))
     order by s.opens_at desc,s.id limit 30
   loop
     snapshot:=qs_stg_private.p3_command('read',item.id,p_roster,null,null,null,null,null);
