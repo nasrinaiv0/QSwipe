@@ -5,7 +5,7 @@ const stage=$('#stage'),connection=$('#connection'),message=$('#message');
 let state=null,credential=null,busy=false,available=false,epoch=0,clockOffset=0,raf=0,interval=0,visual=null,renderedKey='';
 const motion=matchMedia('(prefers-reduced-motion: reduce)');
 const colors=['#187953','#df9f2d','#397cb5','#cb7456','#8065b6','#369a91','#be5876','#6c7a39'];
-const gameName={wheel:'Lucky wheel',race:'Duck race',trivia:'Team trivia',memory:'Memory match',bingo:'Team bingo'};
+const gameName={wheel:'Lucky wheel',race:'Duck race',trivia:'Team trivia',memory:'Memory match',bingo:'Team bingo',charades:'Charades'};
 const profileKey='qswipe.player.v1';
 let profile=null,profileSecret=null,profileBusy=false;
 try{const x=localStorage.getItem(profileKey);if(/^[0-9a-f]{64}$/.test(x??''))profileSecret=x;}catch{}
@@ -23,7 +23,7 @@ const connected=t=>{connection.textContent=t;};
 const control=(text,fn,cls='')=>{const b=el('button',text,cls);b.type='button';b.addEventListener('click',fn);return b;};
 const now=()=>Date.now()+clockOffset;
 const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
-const safeErrors={PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
+const safeErrors={ACCESSORY_LOCKED:'Unlock this accessory through games.',GUESS_UNAVAILABLE:'Wait a moment or check whether this round has ended.',PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
  for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||!available||!!resumeId;for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
 function reset(text){epoch++;forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
@@ -47,8 +47,9 @@ async function send(body,auth=credential){
 }
 const cmd=(action,rest={})=>state&&send({action,roomId:state.roomId,...rest});
 
-function mascot(id){
- const palette={duck:['#f4c654','#ffdf83'],fox:['#e78a53','#ffceaa'],bunny:['#b6a2d9','#e5d9f6'],bear:['#b78a64','#e8c6a1'],star:['#edb84a','#ffe8a4']}[id]??['#f4c654','#ffdf83'];
+function mascot(id,accessory='none'){
+ const zodiac={aries:['#d09b72','#f6d8bb','♈'],taurus:['#987a61','#eac5a1','♉'],gemini:['#6da5bd','#c9e8ef','♊'],cancer:['#dc827c','#f9c5bf','♋'],leo:['#dca13e','#ffdf83','♌'],virgo:['#86a66d','#dbe9b6','♍'],libra:['#9d91c4','#e2d9f4','♎'],scorpio:['#886c9f','#d9c1ea','♏'],sagittarius:['#be8364','#f3c6a7','♐'],capricorn:['#719a93','#c9e1d6','♑'],aquarius:['#6a9ec6','#c7e3f8','♒'],pisces:['#7c9ec7','#d4e5fa','♓']}[id];
+ const palette={duck:['#f4c654','#ffdf83'],fox:['#e78a53','#ffceaa'],bunny:['#b6a2d9','#e5d9f6'],bear:['#b78a64','#e8c6a1'],star:['#edb84a','#ffe8a4']}[id]??zodiac??['#f4c654','#ffdf83'];
  const n=svg('svg',{viewBox:'0 0 100 100',class:'collectible-svg','aria-hidden':'true'});n.append(svg('ellipse',{cx:50,cy:88,rx:26,ry:5,fill:'currentColor',opacity:.12}));
  const g=svg('g',{class:'mascot-bob'});n.append(g);
  if(id==='star'){g.append(svg('path',{d:'M50 8L63 34L92 38L71 59L76 88L50 74L24 88L29 59L8 38L37 34Z',fill:palette[0],stroke:'#bd8d30','stroke-width':2,'stroke-linejoin':'round'}));}
@@ -56,15 +57,26 @@ function mascot(id){
  if(id==='fox'){g.append(svg('path',{d:'M22 44L20 13L45 30M78 44L80 13L55 30',fill:palette[0],stroke:palette[0],'stroke-width':4,'stroke-linejoin':'round'}));}
  if(id==='bunny')for(const x of [36,64])g.append(svg('ellipse',{cx:x,cy:24,rx:10,ry:21,fill:palette[0]}),svg('ellipse',{cx:x,cy:24,rx:4,ry:13,fill:'#e9a3b5'}));
  if(id==='bear')for(const x of [27,73])g.append(svg('circle',{cx:x,cy:28,r:13,fill:palette[0]}),svg('circle',{cx:x,cy:28,r:7,fill:palette[1]}));
+ if(['aries','taurus','capricorn'].includes(id)){for(const side of [-1,1])g.append(svg('path',{d:'M'+(50+side*20)+' 32 Q'+(50+side*42)+' 2 '+(50+side*12)+' 13 Q'+(50+side*32)+' 18 '+(50+side*20)+' 36',fill:palette[0],stroke:palette[0],'stroke-width':3}));}
+ if(id==='leo')for(let i=0;i<12;i++){const a=i*Math.PI/6;g.append(svg('circle',{cx:50+29*Math.cos(a),cy:48+27*Math.sin(a),r:10,fill:palette[0]}));}
+ if(id==='cancer')for(const side of [-1,1])g.append(svg('path',{d:'M'+(50+side*25)+' 60 Q'+(50+side*48)+' 48 '+(50+side*42)+' 32 L'+(50+side*30)+' 41 L'+(50+side*39)+' 48Z',fill:palette[0]}));
+ if(id==='scorpio')g.append(svg('path',{d:'M70 75 Q97 63 80 43 L89 37',fill:'none',stroke:palette[0],'stroke-width':8,'stroke-linecap':'round'}));
+ if(id==='pisces')g.append(svg('path',{d:'M26 69L6 58L8 80Z M74 69L94 58L92 80Z',fill:palette[0]}));
  g.append(svg('ellipse',{cx:50,cy:49,rx:31,ry:27,fill:palette[1]}));}
  for(const x of [39,61])g.append(svg('circle',{cx:x,cy:48,r:3.2,fill:'#202b25',class:'mascot-eye'}),svg('ellipse',{cx:x+(x<50?-8:8),cy:57,rx:5,ry:3,fill:'#eaa1a3',opacity:.8}));
  if(id==='duck')g.append(svg('ellipse',{cx:50,cy:58,rx:11,ry:5,fill:'#e59134'}));else g.append(svg('path',{d:'M44 59Q50 65 56 59',stroke:'#674e45','stroke-width':2,fill:'none','stroke-linecap':'round'}));
+ if(zodiac){const badge=svg('text',{x:50,y:78,'text-anchor':'middle','font-size':15,fill:'#263c32','font-weight':700});badge.textContent=zodiac[2];g.append(badge);}
+ if(accessory==='scarf')g.append(svg('path',{d:'M28 66Q50 75 72 66L70 75L58 79L62 89L52 87L48 77L30 74Z',fill:'#c75b62'}));
+ if(accessory==='glasses'){for(const x of [39,61])g.append(svg('rect',{x:x-9,y:41,width:18,height:14,rx:5,fill:'none',stroke:'#33443d','stroke-width':2.5}));g.append(svg('path',{d:'M48 47H52',stroke:'#33443d','stroke-width':2.5}));}
+ if(accessory==='crown')g.append(svg('path',{d:'M29 22L26 7L40 16L50 3L60 16L74 7L71 22Z',fill:'#f2c34a',stroke:'#a9771c','stroke-width':1.5}));
  return n;
 }
 function profilePanel(target,p,editable=false){
- target.replaceChildren();const head=el('div',undefined,'passport-head'),info=el('div');info.append(el('span','PLAYER PASSPORT','eyebrow'),el('h2',p.name),el('p',p.points+' lifetime points · '+p.rounds+' games','muted'));head.append(mascot(p.mascot),info);target.append(head);
- const daily=el('div',undefined,'daily-card');daily.append(el('strong',p.daily.completed?'Daily challenge complete ✓':'Daily challenge · +25 points'),el('p',p.daily.completed?'Come back tomorrow (UTC).':'Complete a skill game with at least one valid answer, pair or bingo mark.'));target.append(daily);
- target.append(el('h3','Mascot collection'));const grid=el('div',undefined,'collectible-grid');for(const m of p.collection){const tile=el('div',undefined,'collectible'+(m.unlocked?' unlocked':''));tile.append(mascot(m.id),el('strong',m.label),el('small',m.requirement),el('small',m.unlocked?'Unlocked':'Locked'));if(editable){const b=control(p.mascot===m.id?'Selected':'Equip',()=>profileRequest({action:'profile_mascot',mascot:m.id}));b.disabled=!m.unlocked||p.mascot===m.id;b.dataset.locked=String(b.disabled);tile.append(b);}grid.append(tile);}target.append(grid);
+ const wasZodiacOpen=target.querySelector('.zodiac-details')?.open??false;target.replaceChildren();const head=el('div',undefined,'passport-head'),info=el('div');info.append(el('span','PLAYER PASSPORT','eyebrow'),el('h2',p.name),el('p',p.points+' lifetime points · '+p.rounds+' games','muted'));head.append(mascot(p.mascot,p.accessory),info);target.append(head);
+ const daily=el('div',undefined,'daily-card');daily.append(el('strong',p.daily.completed?'Daily challenge complete ✓':'Daily challenge · +25 points'),el('p',p.daily.completed?'Come back tomorrow (UTC).':'Complete a skill game with at least one valid answer, pair, bingo mark or charades guess.'));target.append(daily);
+ const season=el('div',undefined,'daily-card');season.append(el('strong','Season '+p.season.month+' · '+p.season.points+' pts'),el('p','Skill-game points · monthly UTC competition'));target.append(season);if(p.season.previous.length)target.append(el('p',p.season.previous.map(x=>x.month+': '+x.points+' pts').join(' · '),'muted'));
+ const acc=el('div',undefined,'accessories');target.append(el('h3','Accessories'));for(const a of p.accessories){const b=control(a.label+(a.id===p.accessory?' ✓':''),()=>profileRequest({action:'profile_accessory',accessory:a.id}),'quiet');b.dataset.locked=String(!editable||!a.unlocked||a.id===p.accessory);b.disabled=b.dataset.locked==='true';b.setAttribute('aria-label',a.label+(a.unlocked?'':' locked'));acc.append(b);}target.append(acc);
+ target.append(el('h3','Mascot collection'));const grid=el('div',undefined,'collectible-grid'),zg=el('div',undefined,'collectible-grid');const zodiacDetails=el('details',undefined,'zodiac-details');zodiacDetails.append(el('summary','Zodiac collection · '+p.collection.filter(m=>m.group==='zodiac'&&m.unlocked).length+'/12 unlocked'),zg);zodiacDetails.open=wasZodiacOpen;for(const m of p.collection){const tile=el('div',undefined,'collectible'+(m.unlocked?' unlocked':''));tile.append(mascot(m.id),el('strong',m.label),el('small',m.requirement),el('small',m.unlocked?'Unlocked':'Locked'));if(editable){const b=control(p.mascot===m.id?'Selected':'Equip',()=>profileRequest({action:'profile_mascot',mascot:m.id}));b.disabled=!m.unlocked||p.mascot===m.id;b.dataset.locked=String(b.disabled);tile.append(b);}(m.group==='zodiac'?zg:grid).append(tile);}target.append(grid,zodiacDetails);
  target.append(el('h3','Tournament history'));if(!p.history.length)target.append(el('p','Your completed tournaments will appear here.','muted'));for(const h of p.history){const row=el('div',undefined,'history-row');const text=el('div',undefined,'grow');text.append(el('strong',h.title),el('small',h.trophyName+' · '+h.completedAt.slice(0,10)));row.append(el('span',h.won?'🏆':'✦','history-icon'),text,el('strong',h.points+' pts'));target.append(row);}
  if(editable){const forget=control('Forget profile on this device',()=>{if(!confirm('Remove the saved profile credential? Without it, you cannot recover this profile.'))return;profileSecret=null;profile=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet');target.append(forget);}
 }
@@ -74,7 +86,9 @@ function drawEntryProfile(){
  for(const form of [$('#create'),$('#join')]){const input=form.elements.name;input.readOnly=!!profile;if(profile)input.value=profile.name;}
  syncControls();
 }
-function drawRoomProfile(){const panel=$('#profile-room');panel.hidden=!state?.profile;if(state?.profile){profile=state.profile;profilePanel(panel,state.profile);}}
+let lastProfileKey='',lastBoardKey='';
+function drawRoomProfile(){const panel=$('#profile-room');panel.hidden=!state?.profile;if(state?.profile){profile=state.profile;$('#passport-points').textContent=profile.points+' pts';const key=state.roomId+JSON.stringify(profile);if(key!==lastProfileKey){lastProfileKey=key;profilePanel($('#profile-room-content'),profile);}}}
+function drawSeason(){const list=$('#season-ranks');list.replaceChildren();$('#season-month').textContent=new Date(state.serverNow).toISOString().slice(0,7);for(const [i,p] of (state.season??[]).entries()){const row=el('div',undefined,'team-row');row.append(el('span',String(i+1),'rank'),el('span',name(p.id),'grow'),el('strong',String(p.points)+' pts'));list.append(row);}if(!list.children.length)list.append(el('p','No player passports in this room.','muted'));}
 async function profileRequest(body){
  if(profileBusy||!available)return;profileBusy=true;syncControls();
  try{const res=await fetch('/api/rooms/command',{method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(6000),headers:{'Content-Type':'application/json',...(profileSecret?{Authorization:'Bearer '+profileSecret}:{})},body:JSON.stringify(body)});const d=await res.json();if(!res.ok||!d.profile)throw Error(d.error||'ROOM_UNAVAILABLE');if(d.profileCredential){profileSecret=d.profileCredential;try{localStorage.setItem(profileKey,profileSecret);}catch{say('Browser storage unavailable; this profile cannot be recovered after closing the page.');}}profile=d.profile;drawEntryProfile();}
@@ -130,16 +144,21 @@ function race(q){
  visual={type:'race',tracks};
 }
 function renderStage(){
- cancelAnimationFrame(raf);visual=null;stage.replaceChildren();const s=state,q=s.round;
+ const oldGuess=stage.querySelector('input[name=guess]');const draftGuess=oldGuess?.value??'',hadFocus=document.activeElement===oldGuess;cancelAnimationFrame(raf);visual=null;stage.replaceChildren();const s=state,q=s.round;
  if(s.phase==='lobby'){
   heading('Ready for game time?',s.host?'Choose a game once at least two players are in the room.':'Waiting for your host to choose a game.');
-  const grid=el('div',undefined,'game-grid');for(const [game,symbol] of [['wheel','✦'],['race','🦆'],['trivia','?'],['memory','◆'],['bingo','▦']]){
+  const grid=el('div',undefined,'game-grid');for(const [game,symbol] of [['wheel','✦'],['race','🦆'],['trivia','?'],['memory','◆'],['bingo','▦'],['charades','✋']]){
    const b=control(gameName[game],()=>cmd('start',{game,version:state.version}),'game');b.prepend(el('span',symbol));b.dataset.locked=String(!s.host||s.players.length<2);b.disabled=b.dataset.locked==='true';grid.append(b);
   }stage.append(grid,el('p','Scores survive reconnects until the room closes or expires.','muted'));return;
  }
  heading(gameName[q.game],q.game==='trivia'?'Question '+(q.index+1)+' of 5 · everyone answers independently':s.phase==='playing'?'One shared draw, one shared result.':'Round complete');
  if(q.game==='wheel')wheel(q);
  if(q.game==='race')race(q);
+ if(q.game==='charades'){
+  const actor=q.actor===s.me;stage.append(el('p',actor?'You are the actor. Act out the prompt without speaking.':name(q.actor)+' is acting. Watch in person or on your team call.'));if(q.prompt)stage.append(el('div',q.prompt.toUpperCase(),'charades-prompt'));
+  const timer=el('div',undefined,'timer'),bar=el('span');timer.append(bar);stage.append(timer);visual={type:'timer',bar};
+  if(!actor&&s.phase==='playing'){const form=el('form',undefined,'charades-form'),input=el('input');input.name='guess';input.maxLength=32;input.required=true;input.pattern='[A-Za-z ]{1,32}';input.autocomplete='off';input.placeholder='Your guess';input.setAttribute('aria-label','Your guess');input.value=draftGuess;const b=el('button','Guess');b.dataset.locked=String(q.guesses>=12);form.append(input,b);form.addEventListener('submit',e=>{e.preventDefault();const value=input.value.trim();if(value){input.value='';cmd('charades_guess',{roundId:q.id,guess:value});}});stage.append(form,el('p',q.guesses+' / 12 guesses · wait 1.2 seconds between guesses','muted'));if(hadFocus)input.focus();}
+ }
  if(q.game==='bingo'){
   const calls=el('div',undefined,'bingo-calls');calls.append(el('span','LATEST CALL','eyebrow'),el('strong',q.calls.length?String(q.calls.at(-1)):'—','bingo-number'),el('span',q.calls.length+' / 75 numbers','muted'));stage.append(calls);
   const recent=el('div',undefined,'bingo-recent');for(const v of q.calls.slice(-12))recent.append(el('span',String(v)));stage.append(recent);
@@ -156,7 +175,7 @@ function renderStage(){
   if(s.phase==='reveal'&&s.host)stage.append(control('Next question',()=>cmd('next',{roundId:q.id,index:q.index}),'stage-action'));
  }
  if(s.phase==='finished'){
-  stage.append(el('div',q.game==='trivia'?'Trivia complete · scores updated':q.game==='memory'?'Memory match complete · scores updated':q.game==='bingo'?(q.winner?'Bingo! '+name(q.winner)+' wins!':'Bingo complete · no winner'):'🏆 '+name(q.winner)+' wins!','result'));
+  stage.append(el('div',q.game==='trivia'?'Trivia complete · scores updated':q.game==='memory'?'Memory match complete · scores updated':q.game==='charades'?(q.winner?'Charades! '+name(q.winner)+' guessed correctly':'Charades complete · time up'):q.game==='bingo'?(q.winner?'Bingo! '+name(q.winner)+' wins!':'Bingo complete · no winner'):'🏆 '+name(q.winner)+' wins!','result'));
   if(q.game==='race'){const podium=el('div',undefined,'podium');for(const [i,id] of q.order.slice(0,3).entries()){const p=el('div',undefined,'podium-step');p.append(el('strong',String(i+1)),el('span',name(id)));podium.append(p);}stage.append(podium);}
   if(s.host)stage.append(control('Back to lobby',()=>cmd('lobby',{version:state.version}),'stage-action'));
  }
@@ -181,8 +200,8 @@ function render(){
  $('#exit').textContent=state.host?'Close room':'Leave room';
  const show=state.host&&state.phase==='lobby';
  $('#invite-panel').hidden=!show;
- const key=state.roomId+':'+state.version+':'+state.me+':'+(state.round?.game==='memory'?JSON.stringify(state.round.cards)+state.round.locked:state.round?.game==='bingo'?state.round.calls.length:'')+':'+(state.profile?JSON.stringify(state.profile):'');
- if(key!==renderedKey){renderedKey=key;drawBoard();if(show)drawQR();renderStage();drawExtras();drawRoomProfile();}
+ const key=state.roomId+':'+state.version+':'+state.me+':'+JSON.stringify(state.season??[])+':'+(state.round?.game==='memory'?JSON.stringify(state.round.cards)+state.round.locked:state.round?.game==='bingo'?state.round.calls.length:'')+':'+(state.profile?JSON.stringify(state.profile):'');
+ if(key!==renderedKey){renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}renderStage();drawRoomProfile();}
  syncControls();
 
 }
