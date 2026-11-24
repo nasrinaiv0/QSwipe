@@ -1,6 +1,7 @@
 -- QSwipe P0–P2 staging schema. REVIEW ONLY: DO NOT APPLY TO MOVO, NASRINAI OR PRODUCTION.
 -- Apply manually only to a newly created, isolated QSwipe STAGING Supabase project after approval.
 -- Production deploy never depends on this migration.
+-- Revised 2026-11-24: only for a fresh, isolated staging DB; do not replace an applied migration.
 begin;
 
 create table public.qs_stg_organizations (
@@ -152,7 +153,11 @@ create policy qs_stg_own_active_membership on public.qs_stg_memberships
 
 create policy qs_stg_own_active_role_grants on public.qs_stg_role_assignments
   for select to authenticated using (
-    starts_at <= now() and (ends_at is null or ends_at > now())
+    (select auth.jwt()->>'aal') = 'aal2'
+    and starts_at <= now() and (ends_at is null or ends_at > now())
+    and exists (select 1 from public.qs_stg_units u
+      where u.id = qs_stg_role_assignments.scope_unit_id
+        and u.workspace_id = qs_stg_role_assignments.workspace_id and u.status = 'active')
     and exists (
       select 1 from public.qs_stg_memberships m
       where m.id = qs_stg_role_assignments.membership_id
@@ -202,7 +207,10 @@ create policy qs_stg_update_own_profile on public.qs_stg_profiles
 
 create policy qs_stg_scoped_roster on public.qs_stg_roster_assignments
   for select to authenticated using (
-    status = 'active' and exists (
+    status = 'active' and exists (select 1 from public.qs_stg_units u
+      where u.id = qs_stg_roster_assignments.unit_id
+        and u.workspace_id = qs_stg_roster_assignments.workspace_id and u.status = 'active')
+    and exists (
       select 1 from public.qs_stg_workspaces active_workspace
       where active_workspace.id = qs_stg_roster_assignments.workspace_id
         and active_workspace.status = 'active'
@@ -211,7 +219,7 @@ create policy qs_stg_scoped_roster on public.qs_stg_roster_assignments
         where own.id = qs_stg_roster_assignments.membership_id
           and own.workspace_id = qs_stg_roster_assignments.workspace_id
           and own.user_id = (select auth.uid()))
-      or exists (
+      or ((select auth.jwt()->>'aal') = 'aal2' and exists (
         select 1 from public.qs_stg_role_assignments grant_row
         join public.qs_stg_memberships manager on manager.id = grant_row.membership_id
             and manager.workspace_id = grant_row.workspace_id
@@ -219,7 +227,7 @@ create policy qs_stg_scoped_roster on public.qs_stg_roster_assignments
           and grant_row.workspace_id = qs_stg_roster_assignments.workspace_id
           and grant_row.scope_unit_id = qs_stg_roster_assignments.unit_id
           and grant_row.role in ('level_1','level_2','level_3','org_admin')
-      )
+      ))
     )
   );
 
