@@ -23,7 +23,7 @@ export function createWorkspace({getToken,getProject,onAuthExpired}){
  const canCheck=()=>{const p=person();return !!p&&!p.isOwn&&grants.some(g=>g.unitId===p.unit_id);};
  const online=()=>navigator.onLine!==false;
  const validContext=()=>!!current&&person()?.id===current.rosterId&&selected()?.sessionId===current.sessionId;
- const adapter=createAttendanceAdapter({call,context:()=>validContext()?{sessionId:current.sessionId,rosterId:current.rosterId,version:current.currentVersion,own:person().isOwn===true,manager:canCheck(),locked:busy||queue.busy||vaultBusy}:null,refresh:async()=>{const p=person(),s=selected();await loadDetails();if(p&&s&&validContext()){sessions=sessions.map(x=>x.sessionId===s.sessionId?{...x,status:current.currentStatus,version:current.currentVersion}:x);adapter.report(sessions,true);}},refreshReport:loadSessions,notify:say});
+ const adapter=createAttendanceAdapter({call,context:()=>validContext()?{sessionId:current.sessionId,rosterId:current.rosterId,version:current.currentVersion,own:person().isOwn===true,manager:canCheck(),locked:busy||queue.busy||vaultBusy}:null,refresh:loadDetails,refreshReport:loadSessions,notify:say});
  async function call(path,body,token=getToken()){
   if(!token)throw Object.assign(Error('AUTH_REQUIRED'),{status:401});
   const r=await fetch('/api/staging/'+path,{method:body?'POST':'GET',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
