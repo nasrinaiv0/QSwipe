@@ -18,7 +18,7 @@ try{
  async function profile(p,name,invite=''){
   await p.goto(origin+'/rooms/'+(invite?'#join='+invite:''));await p.getByText('Staging room service',{exact:true}).waitFor();
   await p.locator('#profile-create input[name=name]').fill(name);await p.locator('#profile-create input[name=remember]').check();await p.getByRole('button',{name:'Create player profile'}).click();await p.locator('#profile-content .passport-head h2').filter({hasText:name}).waitFor();
-  assert.equal(await p.locator('#profile-content .collectible').count(),5);assert.equal(await p.locator('#profile-content .collectible.unlocked').count(),1);
+  assert.equal(await p.locator('#profile-content .collectible').count(),17);assert.equal(await p.locator('#profile-content .collectible.unlocked').count(),1);
  }
  await profile(host,'Alex');await host.screenshot({path:'collection-previews/01-player-passport.png',fullPage:true,animations:'disabled'});await host.locator('#create button').click();await host.locator('#invite-panel').waitFor();const invite=await host.locator('#code').textContent();
  await profile(guest,'Jamie',invite);await guest.locator('#join button').click();await guest.locator('#room').waitFor();await host.waitForFunction(()=>document.querySelector('#count').textContent==='2 / 12');
@@ -33,10 +33,10 @@ try{
   for(const p of pages)await p.getByText('Bingo! Alex wins!',{exact:true}).waitFor();
   if(r<2)await host.getByRole('button',{name:'Back to lobby'}).click();
  }
- await host.locator('#profile-room .history-row').waitFor();assert.equal(await host.locator('#profile-room .collectible.unlocked').count(),5);assert.match(await host.locator('#profile-room .passport-head').textContent(),/145 lifetime points/);
+ await host.locator('#profile-room > summary').click();await guest.locator('#profile-room > summary').click();await host.locator('#profile-room .history-row').waitFor();assert.equal(await host.locator('#profile-room .collectible.unlocked').count(),8);assert.match(await host.locator('#profile-room .passport-head').textContent(),/145 lifetime points/);
  await host.screenshot({path:'collection-previews/05-bingo-tournament-result.png',fullPage:true,animations:'disabled'});await guest.screenshot({path:'collection-previews/06-participant-history-dark.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:'Close room',exact:true}).click();await guest.getByText('Room closed or expired. Join a new room.',{exact:true}).waitFor();
- await host.reload();await host.locator('#profile-content .history-row').waitFor();assert.match(await host.locator('#profile-content .history-row').textContent(),/Orion Champion/);assert.equal(await host.locator('#profile-content .collectible.unlocked').count(),5);
+ await host.reload();await host.locator('#profile-content .history-row').waitFor();assert.match(await host.locator('#profile-content .history-row').textContent(),/Orion Champion/);assert.equal(await host.locator('#profile-content .collectible.unlocked').count(),8);
  await host.locator('#profile-content .collectible').filter({hasText:'Nova'}).getByRole('button',{name:'Equip'}).click();await host.locator('#profile-content .collectible').filter({hasText:'Nova'}).getByRole('button',{name:'Selected'}).waitFor();
  await host.screenshot({path:'collection-previews/07-unlocked-mascots-history.png',fullPage:true,animations:'disabled'});
  for(const p of pages){assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.equal(await p.evaluate(()=>sessionStorage.length),0);}
