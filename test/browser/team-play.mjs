@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,readFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.QSWIPE_BROWSER_PACKAGE+'/node_modules/playwright');
@@ -34,6 +34,27 @@ try{
   await page.locator('form[data-submit=challenge-start] button').click();
   for(let i=0;i<10;i++)await page.locator('[data-action=challenge-answer]').first().click();
   await page.getByText('Team round complete!').waitFor();assert.match(await page.locator('.challenge-intro [role=status]').textContent(),/^0 scored/);
+  // Historical eligibility is rendered from persisted, fictional local data after reload.
+  await page.evaluate(()=>{
+   const d=JSON.parse(localStorage.getItem('qswipe-v3')),w=d.workspaces[d.activeId],owner=w.people.find(p=>p.id===w.ownerId);
+   const iso=offset=>{const n=new Date();n.setDate(n.getDate()+offset);return [n.getFullYear(),String(n.getMonth()+1).padStart(2,'0'),String(n.getDate()).padStart(2,'0')].join('-');};
+   const old={id:'former12',name:'Former member',level:0,parentId:owner.id,position:'Member',branch:'',joined:'manual',createdAt:Date.now()-172800000};
+   const fresh={id:'current12',name:'Current member',level:0,parentId:owner.id,position:'Member',branch:'',joined:'manual',createdAt:Date.now()-86400000};
+   const days=[0,1,2,3,4,5,6];w.createdAt=new Date(iso(-2)+'T12:00:00').getTime();w.config.days=days;w.people=[owner,fresh];
+   w.rosterHistory=[{date:iso(-2),days,people:[owner,old]},{date:iso(-1),days,people:[owner,fresh]}];
+   w.attendance={[iso(-2)]:{[old.id]:{s:'present',at:Date.now()-172800000,by:owner.id}},[iso(-1)]:{[fresh.id]:{s:'absent',at:Date.now()-86400000,by:owner.id}}};
+   localStorage.setItem('qswipe-v3',JSON.stringify(d));
+  });
+  await page.goto(origin+'/#/reports');await page.reload();await page.locator('#rep-body').waitFor();
+  const oldRow=page.locator('#rep-body tr').filter({hasText:'Former member'}),newRow=page.locator('#rep-body tr').filter({hasText:'Current member'});
+  assert.deepEqual((await oldRow.locator('td').allTextContents()).slice(2,5),['1','0','0']);
+  assert.deepEqual((await newRow.locator('td').allTextContents()).slice(2,5),['0','1','1']);
+  assert.equal(await page.locator('#rep-body tr').count(),2);
+  const downloadPromise=page.waitForEvent('download');await page.locator('[data-action=rep-export]').click();const csv=await downloadPromise;
+  const csvText=await readFile(await csv.path(),'utf8');assert.equal(csvText.trim().split('\r\n').length,4);assert.equal(csvText.split('\n').filter(x=>x.includes('"Former member"')).length,1);assert.equal(csvText.split('\n').filter(x=>x.includes('"Current member"')).length,2);
+  await page.screenshot({path:'team-play-previews/'+name+'-historical-reports.png',fullPage:true,animations:'disabled'});
+  await page.goto(origin+'/#/play');await page.locator('.game-mode-nav').waitFor();assert.equal(await page.locator('.game-mode-nav a[aria-current=page]').textContent(),'On this device');assert.equal(await page.locator('.game-mode-nav a').last().getAttribute('href'),'./rooms/');
+  await page.screenshot({path:'team-play-previews/'+name+'-unified-play.png',fullPage:true,animations:'disabled'});
   await page.goto(origin+'/#/welcome');await page.locator('#ws-name').fill('Other Team');await page.locator('#owner-name').fill('Taylor');await page.locator('#create-form button[type=submit]').click();
   await page.locator('.engage-summary').waitFor();await page.goto(origin+'/#/play/challenge');await page.locator('.challenge-players').waitFor();assert.equal(await page.locator('.engage-rank').count(),0);assert.equal(await page.locator('.achievement.unlocked').count(),0);
   assert.deepEqual(errors,[]);
