@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {mkdir} from 'node:fs/promises';
+import {mkdir,mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createPersistentRoomService,createFileStore} from '../../lib/rooms/persistence.mjs';
 import {createRoomHttpServer} from '../../lib/rooms/http.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.QSWIPE_BROWSER_PACKAGE+'/node_modules/playwright');
-const server=createRoomHttpServer();
+const dir=await mkdtemp(join(tmpdir(),'qswipe-browser-'));
+const store=createFileStore(join(dir,'rooms.json'));
+const server=createRoomHttpServer({service:createPersistentRoomService(store,{rand:n=>n-1})});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const origin='http://127.0.0.1:'+server.address().port;
 let browser;
@@ -28,6 +33,9 @@ try{
  for(const p of pages)await p.waitForFunction(()=>document.querySelector('#count').textContent==='3 / 12');
  await host.screenshot({path:'live-room-previews/02-host-lobby-qr.png',fullPage:true,animations:'disabled'});
  await guest.screenshot({path:'live-room-previews/03-guest-mobile-lobby.png',fullPage:true,animations:'disabled'});
+ await host.getByRole('button',{name:'mint',exact:true}).click();await guest.getByRole('button',{name:'berry',exact:true}).click();await guest.waitForFunction(()=>document.querySelector('[aria-label=berry]')?.getAttribute('aria-pressed')==='true');const revision=await guest.locator('#room').getAttribute('data-version');await host.waitForFunction(v=>document.querySelector('#room').dataset.version===v,revision);
+ await host.getByRole('textbox',{name:'Tournament title'}).fill('Orion Friday Cup');await host.getByRole('combobox',{name:'Trophy style'}).selectOption('Golden duck');await host.getByRole('button',{name:'Create tournament'}).click();await host.getByText('Orion Friday Cup',{exact:true}).waitFor();
+ await host.screenshot({path:'live-room-previews/14-tournament-lobby.png',fullPage:true,animations:'disabled'});
  assert.equal(await guest.getByRole('button',{name:/Lucky wheel/}).isDisabled(),true);
  await host.getByRole('button',{name:/Lucky wheel/}).click();
  for(const p of pages)await p.locator('.wheel-box').waitFor();
@@ -44,6 +52,8 @@ try{
  const podium=await host.locator('.podium').textContent();
  for(const p of pages)assert.equal(await p.locator('.podium').textContent(),podium);
  await host.screenshot({path:'live-room-previews/08-race-results.png',fullPage:true,animations:'disabled'});
+ await guest.reload();await guest.locator('.podium').waitFor();assert.equal(await guest.locator('.podium').textContent(),podium);
+ await guest.screenshot({path:'live-room-previews/15-reconnected-mobile.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:'Back to lobby'}).click();await host.getByRole('button',{name:/Team trivia/}).click();
  for(let i=0;i<5;i++){
   for(const p of pages)await p.waitForFunction(index=>document.querySelector('#stage p')?.textContent.startsWith('Question '+(index+1)+' of 5')&&document.querySelector('.answers button:not([disabled])'),i);
@@ -57,12 +67,21 @@ try{
  for(const p of pages)await p.getByText('Trivia complete · scores updated',{exact:true}).waitFor();
  const scoreMap=async p=>p.locator('#players .player').evaluateAll(rows=>rows.map(r=>[r.querySelector('.grow strong').textContent.replace(' · You',''),Number(r.querySelector('.score').textContent)]));
  const scores=await scoreMap(host);assert.equal(scores.reduce((n,x)=>n+x[1],0),220);
- for(const p of pages){assert.deepEqual(await scoreMap(p),scores);assert.equal(await p.locator('#players .badge-line').count(),3);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.equal(await p.evaluate(()=>localStorage.length+sessionStorage.length),0);}
+ for(const p of pages){assert.deepEqual(await scoreMap(p),scores);assert.equal(await p.locator('#players .badge-line').count(),3);assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.equal(await p.evaluate(()=>localStorage.length),0);assert.equal(await p.evaluate(()=>sessionStorage.length),1);}
  await host.screenshot({path:'live-room-previews/11-final-leaderboard.png',fullPage:true,animations:'disabled'});
  await guest.screenshot({path:'live-room-previews/12-mobile-leaderboard.png',fullPage:true,animations:'disabled'});
  await third.screenshot({path:'live-room-previews/13-dark-leaderboard.png',fullPage:true,animations:'disabled'});
+ await host.locator('#tournament-panel .result').waitFor();await host.screenshot({path:'live-room-previews/16-tournament-trophy.png',fullPage:true,animations:'disabled'});
+ await host.getByRole('button',{name:'Back to lobby'}).click();await host.getByRole('button',{name:/Memory match/}).click();
+ for(const p of pages)await p.locator('.memory-grid').waitFor();
+ await guest.screenshot({path:'live-room-previews/17-memory-mobile.png',fullPage:true,animations:'disabled'});
+ await Promise.all(pages.map(async p=>{for(let i=0;i<8;i++){await p.locator('.memory-card').nth(i).click();await p.locator('.memory-card').nth(i+8).click();}}));
+ for(const p of pages)await p.getByText('Memory match complete · scores updated',{exact:true}).waitFor();
+ assert.equal((await scoreMap(host)).reduce((n,x)=>n+x[1],0),370);
+ await third.screenshot({path:'live-room-previews/18-memory-dark-results.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:'Close room',exact:true}).click();
  for(const p of [guest,third])await p.getByText('Room closed or expired. Join a new room.',{exact:true}).waitFor();
+ for(const p of pages)assert.equal(await p.evaluate(()=>sessionStorage.length),0);
  assert.deepEqual(errors,[]);
- console.log('Live rooms browser passed: 3 independent sessions, QR link, wheel, race, trivia, teams, close and responsive layouts.');
-}finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));}
+ console.log('Live rooms browser passed: 3 independent sessions, QR link, wheel, race, trivia, reconnect, tournament, memory, cosmetics, teams, close and responsive layouts.');
+}finally{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));await rm(dir,{recursive:true,force:true});}
