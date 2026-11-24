@@ -4,9 +4,10 @@ import {readFile,mkdir} from 'node:fs/promises';
 import {resolve,extname,join} from 'node:path';
 import {createRequire} from 'node:module';
 import assert from 'node:assert/strict';
+import {encode} from 'uqr';
 const require=createRequire(join(process.env.QSWIPE_BROWSER_PACKAGE,'package.json'));
 const {chromium}=require('playwright');
-const root=resolve('public');
+const adapter=process.env.QSWIPE_ADAPTER_BROWSER==='1';const root=resolve(adapter?'dist':'public');
 const server=createServer(async(req,res)=>{
  try{
   const pathname=new URL(req.url,'http://localhost').pathname;
@@ -24,11 +25,11 @@ const user=id(1),ws=id(2),unit=id(3),person=id(4),slot=id(5),request=id(6),facto
 const token='a'.repeat(80),mfa='b'.repeat(80),project='https://aaaaaaaaaaaaaaaaaaaa.supabase.co';
 const at='2026-11-24T01:00:00Z',close='2026-11-24T09:00:00Z';
 const makeRequest=(over={})=>({requestId:request,baseVersion:1,originalStatus:'absent',proposedStatus:'present',reason:'incorrect_mark',createdAt:at,madeByMe:false,outcome:'pending',decisionReason:null,resultingVersion:null,decidedAt:null,...over});
-const p6=process.env.QSWIPE_P6_BROWSER==='1';const dir=p6?'p6-previews':'p5-previews';await mkdir(dir,{recursive:true});
+const p6=process.env.QSWIPE_P6_BROWSER==='1';const dir=adapter?'adapter-previews':p6?'p6-previews':'p5-previews';await mkdir(dir,{recursive:true});
 async function exercise(name,width,height,manager,colorScheme='light'){
  const ctx=await browser.newContext({viewport:{width,height},colorScheme,reducedMotion:'reduce',deviceScaleFactor:1});
  const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
- let requests=[makeRequest({madeByMe:!manager})],version=1,status='absent',sends=0;
+ let requests=[makeRequest({madeByMe:!manager})],version=1,status='absent',sends=0;let markAttempts=0,firstMark=null;const passToken='c'.repeat(64);
  await page.route('**/*',async route=>{
   const req=route.request(),u=new URL(req.url()),path=u.pathname,auth=req.headers().authorization;
   const reply=(body,status=200)=>route.fulfill({status,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS'},body:JSON.stringify(body)});
@@ -43,11 +44,12 @@ async function exercise(name,width,height,manager,colorScheme='light'){
    return route.abort();
   }
   if(u.origin!==origin)return route.abort();
-  if(path==='/api/staging/config')return reply({staging:true,supabaseUrl:project,publishableKey:'sb_publishable_fictionalkey',workspaceEnabled:true,securityEnabled:p6});
+  if(path==='/api/staging/config')return reply({staging:true,supabaseUrl:project,publishableKey:'sb_publishable_fictionalkey',workspaceEnabled:true,securityEnabled:p6,adapterEnabled:adapter});
   if(path==='/api/staging/me')return reply({userId:user,memberships:[{id:id(8),workspaceId:ws}],grants:manager&&auth==='Bearer '+mfa?[{unitId:unit,role:'level_1'}]:[]});
   if(path==='/api/staging/roster')return reply({workspaceId:ws,rows:manager&&auth==='Bearer '+mfa?[{id:person,workspace_id:ws,unit_id:unit,display_name_snapshot:'Jordan Lee',position_snapshot:'Support specialist',isOwn:false},{id:own,workspace_id:ws,unit_id:unit,display_name_snapshot:'Alex Rivera',position_snapshot:'Team lead',isOwn:true}]:[{id:person,workspace_id:ws,unit_id:unit,display_name_snapshot:'Jordan Lee',position_snapshot:'Support specialist',isOwn:true}]});
   if(path==='/api/staging/sessions')return reply({rosterId:u.searchParams.get('roster_id'),sessions:[{sessionId:slot,opensAt:at,closesAt:close,status,version}]});
   if(path==='/api/staging/inbox'){assert.equal(auth,'Bearer '+mfa);return reply({workspaceId:ws,rows:requests.filter(r=>r.outcome==='pending'&&!r.madeByMe).map(r=>({requestId:r.requestId,sessionId:slot,rosterId:person,employee:'Jordan Lee',baseVersion:r.baseVersion,currentVersion:version,originalStatus:r.originalStatus,proposedStatus:r.proposedStatus,reason:r.reason,createdAt:r.createdAt})),nextCursor:null});}
+  if(path==='/api/staging/attendance'){const d=req.postDataJSON();assert.equal(d.sessionId,slot);assert.equal(d.rosterId,person);if(d.action==='issue'){assert.equal(manager,false);const qr=encode(passToken,{ecc:'M',border:0});return reply({sessionId:slot,rosterId:person,token:passToken,expiresAt:new Date(Date.now()+60000).toISOString(),qr:qr.data.map(r=>Array.from(r,x=>x?'1':'0').join(''))});}if(d.action==='mark'){assert.equal(auth,'Bearer '+mfa);assert.equal(d.expectedVersion,0);assert.equal(d.qrToken,passToken);markAttempts++;if(markAttempts===1){firstMark=d;return reply({error:'UPSTREAM_UNAVAILABLE'},503);}assert.deepEqual(d,firstMark);version=1;status='present';return reply({sessionId:slot,rosterId:person,status,version,eventId:own,recordedAt:at,replayed:false});}return reply({error:'INVALID'},400);}
   if(path==='/api/staging/approvals'){
    const d=req.postDataJSON();
    if(d.action==='list')return reply({sessionId:d.sessionId,rosterId:d.rosterId,currentVersion:version,currentStatus:status,requests});
@@ -63,6 +65,7 @@ async function exercise(name,width,height,manager,colorScheme='light'){
   await page.locator('#email').fill('fictional@example.invalid');await page.locator('#otp-request button').click();
   await page.locator('#code').fill('123456');await page.locator('#otp-verify button').click();
   await page.locator('#workspace-panel').waitFor({state:'visible'});}
+  if(adapter){await page.goto(origin+'/');const entry=page.getByRole('link',{name:'Sign in to staging'});await entry.waitFor();await page.locator('.onboard').screenshot({path:dir+'/'+name+'-entry.png',animations:'disabled'});await entry.click();assert.equal(new URL(page.url()).pathname,'/staging/');await page.evaluate(()=>localStorage.clear());}
   await signIn();const started=Date.now();
   if(manager){await page.locator('#mfa-verify').waitFor({state:'visible'});await page.locator('#mfa-code').fill('123456');await page.locator('#mfa-verify button').click();await page.waitForFunction(()=>document.querySelector('#mfa-status').textContent.includes('Authenticator verified'));}
   await page.locator('#load-roster').click();await page.locator('#p5-person option[value="'+person+'"]').waitFor({state:'attached'});
@@ -97,11 +100,12 @@ async function exercise(name,width,height,manager,colorScheme='light'){
    assert.equal(sends,1);await page.waitForFunction(()=>document.querySelector('#p5-current').textContent==='Absent');
    if(p6){await page.waitForFunction(()=>!document.querySelector('#p6-delete').disabled);await page.locator('#p6-delete').click();await page.waitForFunction(()=>localStorage.length===0);}
   }
+  if(adapter){version=0;status='unmarked';requests=[];await page.locator('#adapter-report-refresh').click();await page.waitForFunction(()=>document.querySelector('#adapter-unmarked').textContent==='1');await page.locator('#p5-session').selectOption(slot);await page.locator('#adapter-attendance').waitFor({state:'visible'});assert.equal(await page.locator('#adapter-rate').textContent(),'—');if(manager){await page.locator('#adapter-token').fill(passToken);await page.locator('#adapter-redeem button').click();await page.locator('#adapter-retry').waitFor({state:'visible'});await page.locator('#adapter-retry').click();await page.waitForFunction(()=>document.querySelector('#p5-version').textContent==='v1');assert.equal(markAttempts,2);assert.equal(await page.locator('#adapter-present').textContent(),'1');await page.locator('#p5-workspace').screenshot({path:dir+'/'+name+'-marked.png',animations:'disabled'});}else{await page.locator('#adapter-issue').click();await page.locator('#adapter-qr svg').waitFor();assert.equal(await page.locator('#adapter-pass-token').inputValue(),passToken);await page.locator('#adapter-attendance').screenshot({path:dir+'/'+name+'-pass.png',animations:'disabled'});await page.locator('#adapter-hide').click();assert.equal(await page.locator('#adapter-pass-token').inputValue(),'');}assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
   await page.locator('#logout').click();await page.locator('#login-panel').waitFor({state:'visible'});
   assert.equal(await page.locator('#p5-queue-count').textContent(),'0');
   assert.deepEqual(await page.evaluate(()=>({local:localStorage.length,session:sessionStorage.length})),{local:0,session:0});
   assert.deepEqual(errors,[]);
-  console.log((p6?'P6':'P5')+' browser passed: '+name+' '+width+'x'+height);
+  console.log((adapter?'R01':p6?'P6':'P5')+' browser passed: '+name+' '+width+'x'+height);
  }finally{await ctx.close();}
 }
 try{await exercise('manager-desktop',1280,900,true);await exercise('employee-mobile',390,844,false);await exercise('manager-mobile-dark',320,780,true,'dark');}finally{await browser.close();await new Promise(r=>server.close(r));}
