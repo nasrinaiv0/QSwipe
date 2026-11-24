@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0: Color Rush, mascot and layout polish
+
+- **Color Rush** (Play → Rush): an original colour-matching card game for you and 1–3 computer players, named from the Participants list. Match the colour or symbol, use Skip, Flip (reverse), +2 and wilds, and tap *Last card!* before someone catches you (you can catch them too). Cards deal in, fly from hand or seat to the pile, the pile you can draw from bobs when you have no match, the direction arrow turns, and the winner gets confetti. Each colour also has its own shape (circle, triangle, square, diamond), so it never relies on colour alone. The rules live in a pure, unit-tested module (`src/core/rush.ts`); 60 simulated computer-only games always finish without losing a card. The old *Cards* tab is now *Pick*.
+- **Mascot.** “Q”, an original duck in the accent-coloured scarf, appears in empty states, locked panels, onboarding, the *All caught up* card and game results, with moods (waving, happy, thinking, sleeping, cheering, oops) and gentle blink, wave and hop animations that stop under reduced motion.
+- **No overlaps.** An automated check of every page and dialog at 320, 390 and 1366px now finds no overlapping elements, no off-centre text in buttons and chips, and nothing hidden behind the floating tab bar. To get there:
+  - Cards waiting behind the top attendance card are blank, and that card's tags moved below the name.
+  - Org-chart expand/collapse buttons sit below their card instead of on its edge.
+  - Dialogs use one horizontal inset for header, body and footer.
+- **Consistent type.** Inter is bundled (SF Pro is still used on Apple devices), so text metrics and centring match on Windows, Android and Linux.
+- **More direct.** The Today tiles are tappable: Team opens the people list; Present, Absent and Unmarked open Attendance already filtered.
+
 ## 0.6.0: iOS 27-style design
 
 - **Liquid Glass on the navigation layer only.** The sidebar, top bar, tab bar, sheets, toasts, tooltips and floating controls use a glass material: tinted body, darkened rim, bright specular edge and soft shadow, as in iOS 27's refined Liquid Glass. Content stays on solid grouped surfaces so text remains easy to read. Only layers that content scrolls under use a live blur.

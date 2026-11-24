@@ -1,12 +1,13 @@
-/** Team games: wheel, duck race, pick-a-card and trivia (team question bank + generated math). */
+/** Team games: wheel, duck race, pick-a-card, Color Rush and trivia (team question bank + generated math). */
 import { bus } from '../bus';
 import { buildRound, parseEntries, rollIndex, shuffled, sliceAtPointer, triviaCategories, wheelTarget, type RoundQuestion } from '../core/games';
 import * as S from '../state/store';
 import { $, $$, confetti, dialogShell, emptyState, esc, haptic, icon, openDialog, reducedMotion, ring, sound, toast } from '../ui/kit';
 import { pageHead, type View } from './common';
 import { createRace } from './race';
+import { createRush } from './rush';
 
-const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Cards', 'cards'], ['trivia', 'Trivia', 'bulb']];
+const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Pick', 'cards'], ['rush', 'Rush', 'sparkles'], ['trivia', 'Trivia', 'bulb']];
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#0e7470', '#c0504d'];
 
 interface Trivia { questions: RoundQuestion[]; index: number; picked: (number | null)[]; score: number; streak: number; best: number; done: boolean; deadline: number }
@@ -47,6 +48,8 @@ const duckRace = createRace({
   resultActions,
   onFinish: name => { g.winner = name; record(`🏆 ${name}`); },
 });
+
+const rush = createRush({ entries, onFinish: text => record(text) });
 
 /* ------------------------------------------------------------------ */
 /* Wheel                                                               */
@@ -227,17 +230,19 @@ export const play: View = {
     const id = game();
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
     const t = g.trivia;
-    const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
+    const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : id === 'rush' ? rush.render() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
     return `${pageHead({ title: 'Play' })}${tabs}
-      ${id === 'trivia' ? `<section class="card"><div class="stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
+      ${id === 'trivia' || id === 'rush' ? `<section class="card"><div class="stage ${id}-stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
   },
   mount(root) {
     if (game() === 'race') duckRace.mount(root); else duckRace.stop();
+    if (game() === 'rush') rush.mount(root); else rush.stop();
     if (game() === 'trivia' && g.trivia && !g.trivia.done) runTimer();
   },
-  unmount() { stop(); duckRace.stop(); },
+  unmount() { stop(); duckRace.stop(); rush.stop(); },
   onKey(e) {
     const id = game();
+    if (id === 'rush') return rush.onKey(e);
     if (e.key === ' ' && !e.repeat) { if (id === 'wheel') spin(); else if (id === 'race') duckRace.start(); else return false; return true; }
     if (id === 'trivia' && g.trivia && !g.trivia.done) {
       if (/^[1-4]$/.test(e.key)) { answer(Number(e.key) - 1); return true; }
@@ -246,9 +251,10 @@ export const play: View = {
     return false;
   },
   actions: {
-    'game-tab': el => { stop(); duckRace.stop(); resetResult(); bus.navigate('play', el.dataset.game!); },
+    'game-tab': el => { stop(); duckRace.stop(); rush.stop(); resetResult(); bus.navigate('play', el.dataset.game!); },
     spin,
     ...duckRace.actions,
+    ...rush.actions,
     'use-team': () => {
       const people = [S.me(), ...S.visiblePeople()];
       if (people.length < 2) return void toast('Your team has fewer than two people. Type names instead.');

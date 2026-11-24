@@ -4,7 +4,8 @@ import { addDays, isIsoDate, markDecision, pendingPeople, percent, rosterStats, 
 import type { Person, Status } from '../core/types';
 import { showPass } from '../qr/flows';
 import * as S from '../state/store';
-import { $, $$, avatar, closeDialog, confirmDialog, dialogShell, emptyState, esc, fmtDate, fmtTime, haptic, icon, openDialog, reducedMotion, ring, sound, statusPill, toast, wait } from '../ui/kit';
+import { $, $$, avatar, closeDialog, confirmDialog, dialogShell, emptyState, esc, fmtDate, fmtTime, haptic, icon, openDialog, reducedMotion, sound, statusPill, toast, wait } from '../ui/kit';
+import { mascot } from '../ui/mascot';
 import { cbtn, pageHead, type View } from './common';
 
 let busy = false;
@@ -23,8 +24,8 @@ function card(p: Person, pos: number): string {
   const branchName = S.branchName(p);
   return `<article class="swipe-card ${cls}" data-id="${p.id}" ${pos === 0 ? `tabindex="0" role="group" aria-roledescription="swipe card" aria-label="${esc(p.name)}. Swipe right or press → for present, left or ← for absent."` : 'aria-hidden="true"'} style="--from-x:${S.session.ui.returnDir * 120}%;--from-r:${S.session.ui.returnDir * 18}deg">
     <span class="stamp present">PRESENT</span><span class="stamp absent">ABSENT</span>
-    <div class="sc-photo">${avatar(p, '', { label: pos === 0 })}<div class="sc-tags">${branchName ? `<span class="pill">${esc(branchName)}</span>` : '<span></span>'}<span class="pill">${esc(S.levelTitle(p.level))}</span></div></div>
-    <div class="sc-body"><h3>${esc(p.name)}</h3><span class="meta">${esc(p.position || S.levelTitle(p.level))}</span></div>
+    <div class="sc-photo">${avatar(p, '', { label: pos === 0 })}</div>
+    <div class="sc-body"><h3>${esc(p.name)}</h3>${p.position ? `<span class="meta">${esc(p.position)}</span>` : ''}<div class="sc-tags">${branchName ? `<span class="pill">${esc(branchName)}</span>` : ''}<span class="pill">${esc(S.levelTitle(p.level))}</span></div></div>
   </article>`;
 }
 
@@ -38,7 +39,7 @@ function deck(): string {
   const q = queue();
   if (!q.length) {
     const s = rosterStats(ui.attTab === 'self' ? [S.me()] : people, S.records(date));
-    return `<div class="done-card">${ring(percent(s.present + s.absent, s.scheduled), { sub: 'complete' })}<strong>All caught up</strong><p class="muted small">${ui.attTab === 'self' ? `You're marked ${esc(statusOf(S.records(date)[S.me().id]) ?? '')} for ${esc(fmtDate(date))}.` : `${s.present} present · ${s.absent} absent for ${esc(fmtDate(date))}.`}</p>
+    return `<div class="done-card">${mascot('cheer', { size: 88 })}<strong>All caught up</strong><span class="pill good">${percent(s.present + s.absent, s.scheduled) ?? 0}% marked</span><p class="muted small">${ui.attTab === 'self' ? `You're marked ${esc(statusOf(S.records(date)[S.me().id]) ?? '')} for ${esc(fmtDate(date))}.` : `${s.present} present · ${s.absent} absent for ${esc(fmtDate(date))}.`}</p>
       <div class="cluster" style="justify-content:center">${S.can('reports.view') ? `<a class="btn sm" href="#/reports">${icon('reports')}Report</a>` : ''}${canUndoBtn()}</div></div>`;
   }
   const visible = q.slice(0, 3);

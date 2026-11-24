@@ -56,10 +56,10 @@ export const today: View = {
       </div></section>`;
 
     const kpis = verify ? `<div class="kpis reveal">
-      ${kpi({ label: 'Team', value: stats.scheduled })}
-      ${kpi({ label: 'Present', value: stats.present })}
-      ${kpi({ label: 'Absent', value: stats.absent })}
-      ${kpi({ label: 'Unmarked', value: stats.pending, accent: stats.pending > 0, href: '#/attendance' })}
+      ${kpi({ label: 'Team', value: stats.scheduled, href: '#/team/people' })}
+      ${kpi({ label: 'Present', value: stats.present, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="present"' })}
+      ${kpi({ label: 'Absent', value: stats.absent, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="absent"' })}
+      ${kpi({ label: 'Unmarked', value: stats.pending, accent: stats.pending > 0, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="pending"' })}
     </div>` : '';
 
     const pulse = (() => {
@@ -91,6 +91,7 @@ export const today: View = {
       </div>`;
   },
   actions: {
+    'kpi-filter': el => { S.session.ui.rosterFilter = el.dataset.filter!; },
     'self-checkin': () => {
       const res = S.mark(S.me().id, 'present', 'self', S.session.today);
       if (!res.ok) return void toast(res.error, { icon: 'alert' });

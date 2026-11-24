@@ -3,6 +3,7 @@ import { hueOf, initialsOf } from '../core/model';
 import type { Commitment, Person, Status, Titles } from '../core/types';
 import { settings } from '../state/store';
 import { icon } from './icons';
+import { mascot, moodFor, type Mood } from './mascot';
 
 export const $ = <T extends Element = HTMLElement>(s: string, root: ParentNode = document) => root.querySelector<T>(s);
 export const $$ = <T extends Element = HTMLElement>(s: string, root: ParentNode = document) => [...root.querySelectorAll<T>(s)];
@@ -329,11 +330,11 @@ export function photoFromFile(file: File, size = 128): Promise<string> {
 }
 
 export const lockedPanel = (o: { title: string; need: string; body?: string }) =>
-  `<div class="empty"><div class="empty-icon">${icon('lock')}</div><strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
+  `<div class="empty">${mascot('oops', { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
   <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}Team</a></div></div>`;
 
-export const emptyState = (o: { icon: string; title: string; body: string; actions?: string }) =>
-  `<div class="empty"><div class="empty-icon">${icon(o.icon)}</div><strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
+export const emptyState = (o: { icon: string; title: string; body: string; actions?: string; mood?: Mood }) =>
+  `<div class="empty">${mascot(o.mood ?? moodFor(o.icon), { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
 
 /** Runs a DOM update inside a View Transition when supported and motion is allowed. Interrupted transitions are harmless. */
 export function withTransition(update: () => void) {

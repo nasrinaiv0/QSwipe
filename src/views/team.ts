@@ -35,8 +35,8 @@ function node(p: Person): string {
   const s = canSeeStatus(p) ? statusOf(S.records(S.session.today)[p.id]) ?? null : undefined;
   const kids = directReports(S.org(), p.id);
   return `<button class="org-node ${p.id === me.id ? 'is-me' : ''} ${inScope ? 'in-scope' : ''} ${selected ? 'selected' : ''}" type="button" data-action="org-select" data-id="${p.id}" data-name="${esc(`${p.name} ${p.position} ${p.branch}`.toLowerCase())}" aria-pressed="${selected}">
-    ${p.id === me.id ? '<span class="you">YOU</span>' : ''}${avatar(p, 'sm', s === undefined ? {} : { status: s })}
-    <span class="grow"><strong>${esc(p.name)}</strong><small>${esc(p.level > 0 ? (p.branch || S.levelTitle(p.level)) : (p.position || S.levelTitle(0)))}${kids.length ? ` · ${kids.length}` : ''}</small></span></button>`;
+    ${avatar(p, 'sm', s === undefined ? {} : { status: s })}
+    <span class="grow"><strong>${p.id === me.id ? '<span class="you">You</span>' : ''}${esc(p.name)}</strong><small>${esc(p.level > 0 ? (p.branch || S.levelTitle(p.level)) : (p.position || S.levelTitle(0)))}${kids.length ? ` · ${kids.length}` : ''}</small></span></button>`;
 }
 
 function tree(p: Person): string {
