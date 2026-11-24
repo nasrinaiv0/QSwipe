@@ -30,11 +30,11 @@ async function authRequest(path, body, token = null, method = 'POST') {
 }
 async function api(path, token = bearer) {
   if (!token) throw new Error('Session expired. Sign in again.');
-  return result(await fetch(`/api/staging/${path}`, {redirect:'error',cache:'no-store',headers:{Authorization:`Bearer ${token}`}}));
+  return result(await fetch(`/api/staging/${path}`, {redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000),headers:{Authorization:`Bearer ${token}`}}));
 }
 async function init() {
   try {
-    config = await result(await fetch('/api/staging/config',{cache:'no-store'}));
+    config = await result(await fetch('/api/staging/config',{redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000)}));
     if (!config?.staging || !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.supabaseUrl)) throw Error('Invalid staging configuration.');
     show('login-panel');
   } catch { $('#setup-panel').replaceChildren();const h=document.createElement('h2');h.textContent='Staging is safely disabled';const p=document.createElement('p');p.textContent='Connect a dedicated QSwipe staging project and enable preview-only settings to test authentication. The existing demo remains available.';$('#setup-panel').append(h,p); }
@@ -59,6 +59,7 @@ async function mfaAction(action) {
   finally{mfaBusy=false;for(const c of controls)c.disabled=false;}
 }
 async function refreshMfa(token,current) {
+  if(pendingFactor){say('#mfa-status','Finish verifying the current authenticator or sign out for administrator-assisted recovery.');return;}
   const factors=await listTotp(authRequest,token);
   if(!current())return;
   clearMfa();showFactors(factors);
@@ -123,7 +124,7 @@ $('#otp-verify').addEventListener('submit',async e => {
   if(loginBusy)return;loginBusy=true;const version=++sessionVersion;
   say('#login-status','Verifying your code…');
   try {
-    const code=$('#code').value.trim();
+    const code=$('#code').value.trim();$('#code').value='';
     if (!/^\d{6,12}$/.test(code)) throw new Error('Invalid code format.');
     const verified = await authRequest('verify',{type:'email',email:accountEmail,token:code});
     if (!verified?.access_token) throw new Error('No access token.');
@@ -158,6 +159,6 @@ $('#load-roster').addEventListener('click',async()=>{
 $('#logout').addEventListener('click',async()=>{
   sessionVersion++;const token=bearer;bearer=null;clearMfa();workspaceIds.clear();$('#code').value='';clearRoster();$('#grants').replaceChildren();$('#workspace').replaceChildren();accountEmail='';
   show('login-panel');say('#login-status','Signed out from this preview.');
-  if(token){try{await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',cache:'no-store',headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`}});}catch{}}
+  if(token){try{await fetch(`${config.supabaseUrl}/auth/v1/logout`,{method:'POST',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(8000),headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`}});}catch{}}
 });
 init();
