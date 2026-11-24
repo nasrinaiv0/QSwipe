@@ -26,7 +26,7 @@ const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
 const safeErrors={STROKE_UNAVAILABLE:'Drawing changed or the stroke limit was reached.',INVALID_QUESTION:'Enter a question and four different answers.',LOBBY_CHANGED:'Room changed; try again after synchronization.',ACCESSORY_LOCKED:'Unlock this accessory through games.',GUESS_UNAVAILABLE:'Wait a moment or check whether this round has ended.',PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
  for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||profileBusy||!available||!!resumeId||b.dataset.locked==='true';for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
-function reset(text){epoch++;drawActive=false;forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
+function reset(text){epoch++;drawActive=false;pendingStroke=null;keyboardRound='';forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
 async function send(body,auth=credential){
  if(busy||!available)return;
  const e=epoch,started=Date.now();busy=true;syncControls();
@@ -43,11 +43,12 @@ async function send(body,auth=credential){
   if(body.action!=='state')say('');
   render();
  }catch(err){if(e===epoch){connected('Connection interrupted');say(safeErrors[err.message]??'Connection interrupted. Reconnecting to the saved room; check the server state before retrying.');}}
- finally{if(e===epoch){busy=false;syncControls();}}
+ finally{if(e===epoch){busy=false;syncControls();flushStroke();}}
 }
 const cmd=(action,rest={})=>state&&send({action,roomId:state.roomId,...rest});
 
-let drawActive=false,drawColor='ink';
+let drawActive=false,drawColor='ink',pendingStroke=null,keyboardRound='',keyboardCursor=[500,500];
+function flushStroke(){if(busy||drawActive||!pendingStroke)return;const p=pendingStroke;pendingStroke=null;if(state?.roomId===p.roomId&&state?.round?.id===p.roundId&&state.phase==='playing'&&state.round.strokes.length===p.index)cmd('draw_stroke',{roundId:p.roundId,index:p.index,color:p.color,points:p.points});else if(state){renderedKey='';render();}}
 function mascot(id,accessory='none'){
  const zodiac={aries:['#d09b72','#f6d8bb','♈'],taurus:['#987a61','#eac5a1','♉'],gemini:['#6da5bd','#c9e8ef','♊'],cancer:['#dc827c','#f9c5bf','♋'],leo:['#dca13e','#ffdf83','♌'],virgo:['#86a66d','#dbe9b6','♍'],libra:['#9d91c4','#e2d9f4','♎'],scorpio:['#886c9f','#d9c1ea','♏'],sagittarius:['#be8364','#f3c6a7','♐'],capricorn:['#719a93','#c9e1d6','♑'],aquarius:['#6a9ec6','#c7e3f8','♒'],pisces:['#7c9ec7','#d4e5fa','♓']}[id];
  const palette={duck:['#f4c654','#ffdf83'],fox:['#e78a53','#ffceaa'],bunny:['#b6a2d9','#e5d9f6'],bear:['#b78a64','#e8c6a1'],star:['#edb84a','#ffe8a4']}[id]??zodiac??['#f4c654','#ffdf83'];
@@ -153,24 +154,24 @@ function race(q){
 
 const inkColors={ink:'#233d33',jade:'#14865f',rose:'#d65880',gold:'#d49328'};
 function drawSurface(q,canDraw){
- const surface=svg('svg',{viewBox:'0 0 1000 1000',class:'drawing-surface',role:canDraw?'application':'img','aria-label':canDraw?'Drawing board. Use pointer or arrow keys, then Enter to draw.':'Shared drawing board'});surface.dataset.strokes=String(q.strokes.length);
+ const surface=svg('svg',{viewBox:'0 0 1000 1000',class:'drawing-surface',role:canDraw?'application':'img','aria-label':canDraw?'Drawing board. Use pointer or arrow keys, then Enter to draw.':'Shared drawing board'});surface.dataset.strokes=String(q.strokes.length);surface.append(svg('rect',{x:0,y:0,width:1000,height:1000,fill:'transparent','pointer-events':'all'}));
  const line=(points,color)=>svg('polyline',{points:points.map(p=>p.join(',')).join(' '),fill:'none',stroke:inkColors[color],'stroke-width':12,'stroke-linecap':'round','stroke-linejoin':'round'});
  for(const stroke of q.strokes)surface.append(line(stroke.points,stroke.color));stage.append(surface);
  if(!canDraw||q.strokes.length>=32)return;
- surface.setAttribute('tabindex','0');let pointer=null,points=[],preview=null,cursor=[500,500];
- const marker=svg('circle',{cx:500,cy:500,r:12,fill:'none',stroke:'#a67e28','stroke-width':4,class:'drawing-cursor'});surface.append(marker);
+ surface.setAttribute('tabindex','0');let pointer=null,points=[],preview=null;if(keyboardRound!==q.id){keyboardRound=q.id;keyboardCursor=[500,500];}let cursor=[...keyboardCursor];
+ const marker=svg('circle',{cx:cursor[0],cy:cursor[1],r:12,fill:'none',stroke:'#a67e28','stroke-width':4,class:'drawing-cursor'});surface.append(marker);
  const palette=el('div',undefined,'ink-palette');for(const color of Object.keys(inkColors)){const b=control(color,()=>{drawColor=color;for(const x of palette.children)x.setAttribute('aria-pressed',String(x.dataset.ink===color));});b.dataset.ink=color;b.style.setProperty('--ink-color',inkColors[color]);b.setAttribute('aria-pressed',String(drawColor===color));palette.append(b);}stage.append(palette,el('p',q.strokes.length+'/32 strokes · draw with touch, mouse, or arrow keys + Enter','muted'));
  const getPoint=e=>{const box=surface.getBoundingClientRect();return [Math.max(0,Math.min(1000,Math.round((e.clientX-box.left)/box.width*1000))),Math.max(0,Math.min(1000,Math.round((e.clientY-box.top)/box.height*1000)))];};
- const sendStroke=pts=>{if(!busy&&state?.round?.id===q.id&&pts.length>=2)cmd('draw_stroke',{roundId:q.id,index:q.strokes.length,color:drawColor,points:pts});};
- surface.addEventListener('pointerdown',e=>{if(busy||drawActive||e.button!==0)return;e.preventDefault();drawActive=true;pointer=e.pointerId;surface.setPointerCapture(pointer);points=[getPoint(e)];preview=line(points,drawColor);surface.append(preview);});
+ const sendStroke=pts=>{if(!pendingStroke&&state?.round?.id===q.id&&pts.length>=2){pendingStroke={roomId:state.roomId,roundId:q.id,index:q.strokes.length,color:drawColor,points:pts.map(p=>[...p])};flushStroke();}};
+ surface.addEventListener('pointerdown',e=>{if(pendingStroke||drawActive||e.button!==0||state?.phase!=='playing'||state?.round?.id!==q.id)return;e.preventDefault();drawActive=true;pointer=e.pointerId;surface.setPointerCapture(pointer);points=[getPoint(e)];preview=line(points,drawColor);surface.append(preview);});
  surface.addEventListener('pointermove',e=>{if(e.pointerId!==pointer||points.length>=32)return;const p=getPoint(e);const last=points.at(-1);if(Math.hypot(p[0]-last[0],p[1]-last[1])<8)return;points.push(p);preview.setAttribute('points',points.map(p=>p.join(',')).join(' '));});
  const end=(e,cancel)=>{if(e.pointerId!==pointer)return;pointer=null;drawActive=false;if(preview)preview.remove();if(!cancel){if(points.length<32)points.push(getPoint(e));sendStroke(points);}points=[];};
  surface.addEventListener('pointerup',e=>end(e,false));surface.addEventListener('pointercancel',e=>end(e,true));surface.addEventListener('lostpointercapture',e=>end(e,true));
- surface.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(e.key))return;e.preventDefault();if(busy||drawActive)return;const old=[...cursor];if(e.key==='Enter'){sendStroke([old,[Math.min(1000,old[0]+25),old[1]]]);return;}cursor=[Math.max(0,Math.min(1000,cursor[0]+(e.key==='ArrowLeft'?-50:e.key==='ArrowRight'?50:0))),Math.max(0,Math.min(1000,cursor[1]+(e.key==='ArrowUp'?-50:e.key==='ArrowDown'?50:0)))];marker.setAttribute('cx',cursor[0]);marker.setAttribute('cy',cursor[1]);if(e.shiftKey)sendStroke([old,cursor]);});
+ surface.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter'].includes(e.key))return;e.preventDefault();if(pendingStroke||drawActive||state?.phase!=='playing'||state?.round?.id!==q.id)return;const old=[...cursor];if(e.key==='Enter'){sendStroke([old,[Math.min(1000,old[0]+25),old[1]]]);return;}cursor=[Math.max(0,Math.min(1000,cursor[0]+(e.key==='ArrowLeft'?-50:e.key==='ArrowRight'?50:0))),Math.max(0,Math.min(1000,cursor[1]+(e.key==='ArrowUp'?-50:e.key==='ArrowDown'?50:0)))];keyboardCursor=[...cursor];marker.setAttribute('cx',cursor[0]);marker.setAttribute('cy',cursor[1]);if(e.shiftKey)sendStroke([old,cursor]);});
 }
 
 function renderStage(){
- if(drawActive)return;const oldGuess=stage.querySelector('input[name=guess]');const draftGuess=oldGuess?.value??'',hadFocus=document.activeElement===oldGuess;cancelAnimationFrame(raf);visual=null;stage.replaceChildren();const s=state,q=s.round;
+ if(drawActive)return;const keepDrawingFocus=document.activeElement?.classList.contains('drawing-surface');const oldGuess=stage.querySelector('input[name=guess]');const draftGuess=oldGuess?.value??'',hadFocus=document.activeElement===oldGuess;cancelAnimationFrame(raf);visual=null;stage.replaceChildren();const s=state,q=s.round;
  if(s.phase==='lobby'){
   heading('Ready for game time?',s.host?'Choose a game once at least two players are in the room.':'Waiting for your host to choose a game.');
   const grid=el('div',undefined,'game-grid');for(const [game,symbol] of [['wheel','✦'],['race','🦆'],['trivia','?'],['memory','◆'],['bingo','▦'],['charades','✋'],['drawing','✎'],['custom_trivia','✦']]){
@@ -181,7 +182,7 @@ function renderStage(){
  if(q.game==='wheel')wheel(q);
  if(q.game==='race')race(q);
  if(['charades','drawing'].includes(q.game)){
-  const actor=q.actor===s.me;stage.append(el('p',q.game==='drawing'?(actor?'Draw the secret word. Do not write the answer.':name(q.actor)+' is drawing. Guess the word.'):(actor?'You are the actor. Act out the prompt without speaking.':name(q.actor)+' is acting. Watch in person or on your team call.')));if(q.prompt)stage.append(el('div',q.prompt.toUpperCase(),'charades-prompt'));if(q.game==='drawing')drawSurface(q,actor&&s.phase==='playing');
+  const actor=q.actor===s.me;stage.append(el('p',q.game==='drawing'?(actor?'Draw the secret word. Do not write the answer.':name(q.actor)+' is drawing. Guess the word.'):(actor?'You are the actor. Act out the prompt without speaking.':name(q.actor)+' is acting. Watch in person or on your team call.')));if(q.prompt)stage.append(el('div',q.prompt.toUpperCase(),'charades-prompt'));if(q.game==='drawing'){drawSurface(q,actor&&s.phase==='playing');if(keepDrawingFocus&&actor&&s.phase==='playing')stage.querySelector('.drawing-surface')?.focus({preventScroll:true});}
   const timer=el('div',undefined,'timer'),bar=el('span');timer.append(bar);stage.append(timer);visual={type:'timer',bar};
   if(!actor&&s.phase==='playing'){const form=el('form',undefined,'charades-form'),input=el('input');input.name='guess';input.maxLength=32;input.required=true;input.pattern='[A-Za-z ]{1,32}';input.autocomplete='off';input.placeholder='Your guess';input.setAttribute('aria-label','Your guess');input.value=draftGuess;const b=el('button','Guess');b.dataset.locked=String(q.guesses>=12);form.append(input,b);form.addEventListener('submit',e=>{e.preventDefault();const value=input.value.trim();if(value){input.value='';cmd('charades_guess',{roundId:q.id,guess:value});}});stage.append(form,el('p',q.guesses+' / 12 guesses · wait 1.2 seconds between guesses','muted'));if(hadFocus)input.focus();}
  }
@@ -253,8 +254,8 @@ $('#copy').addEventListener('click',async()=>{if(!state?.invite)return;const lin
 const invite=/^#join=([a-f0-9]{32})$/.exec(location.hash)?.[1];
 if(invite){forgetSession();$('#join input[name=invite]').value=invite;history.replaceState(null,'',location.pathname);$('#join input[name=name]').focus();}
 async function health(){if(healthBusy)return;healthBusy=true;lastHealth=Date.now();try{const res=await fetch('/api/rooms/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});const d=await res.json();if(!res.ok||d.available!==true)throw Error();available=true;connected('Staging room service');say('');}catch{available=false;connected('Preview only');say('Shared rooms require the isolated room server. This static preview does not connect to a live backend.');}healthBusy=false;syncControls();if(available&&profileSecret)await loadProfile();if(available&&!invite){const saved=readSession();if(saved){credential=saved.credential;resumeId=saved.roomId;await send({action:'state',roomId:resumeId});}}}
-interval=setInterval(()=>{if(!busy&&!drawActive&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
+interval=setInterval(()=>{if(!busy&&!drawActive&&!pendingStroke&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAnimationFrame(raf);else if(state&&!drawActive){cmd('state');animate();}});
-window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;cancelAnimationFrame(raf);credential=null;state=null;});
+window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;drawActive=false;pendingStroke=null;cancelAnimationFrame(raf);credential=null;state=null;});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 drawEntryProfile();health();
