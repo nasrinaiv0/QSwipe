@@ -2,7 +2,7 @@ import {bus} from '../bus';
 import {answerTurn,createTeamRound,leaderboard,milestones,roundScores,points,type TeamRound} from '../core/engagement';
 import {isoDate} from '../core/model';
 import * as S from '../state/store';
-import {$,$$,avatar,esc,icon,toast,confetti,sound} from '../ui/kit';
+import {$,avatar,esc,icon,toast,confetti,sound} from '../ui/kit';
 import type {Handler} from './common';
 let round:TeamRound|null=null,period:'week'|'all'='week',saved=0;
 const players=()=>[S.me(),...S.visiblePeople()].filter((p,i,a)=>a.findIndex(x=>x.id===p.id)===i);
