@@ -1,3 +1,4 @@
+import { engagementSummary } from './engagement';
 import { bus } from '../bus';
 import { attendanceRate, commitmentOf, dailySeries, relativeTime, rosterStats, sessionDates, shiftLabel, statusOf } from '../core/model';
 import type { Commitment } from '../core/types';
@@ -81,6 +82,7 @@ export const today: View = {
       ${kpis}
       ${verify && stats.pending && sessionDay ? `<div class="notice" style="margin-bottom:var(--gap)">${icon('info')}<span>${plural(stats.pending, 'person is', 'people are')} not marked yet. <a href="#/attendance"><b>Open the swipe queue</b></a> or <button class="btn sm soft" type="button" data-action="scan">${icon('scan')}scan passes</button></span></div>` : ''}
       <div class="grid two reveal">
+        ${engagementSummary()}
         ${checklist()}
         <section class="card"><div class="card-head"><div><h2>${icon('commitments')}Next session</h2><p class="sub">${esc(fmtDate(next, { weekday: 'long', month: 'short', day: 'numeric' }))} · ${esc(shiftLabel(c))}</p></div><a class="btn sm ghost" href="#/commitments">Plan ${icon('arrowRight')}</a></div>${choiceGrid(next)}</section>
         <section class="card"><div class="card-head"><h2>${icon('updates')}Updates ${unread ? `<span class="badge">${unread}</span>` : ''}</h2><a class="btn sm ghost" href="#/updates">All ${icon('arrowRight')}</a></div>
