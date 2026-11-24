@@ -1,3 +1,4 @@
+import { cleanScores } from './engagement';
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
 import { sanitizeQuestion } from './games';
 import { cleanText, COMMITMENTS, configFromPreset, indexOrg, ancestors, isIsoDate, LEVELS, sanitizeAnnouncementText, sanitizeConfig, sanitizePolicy, statusOf } from './model';
@@ -142,6 +143,7 @@ export function sanitizeWorkspace(input: unknown): Workspace | null {
     id, createdAt: num(o.createdAt, Date.now()), config: sanitizeConfig(o.config, configFromPreset('custom', 'Workspace')),
     ownerId, meId, people, policy: sanitizePolicy(o.policy), attendance, commitments, announcements, acked, audit, invites,
     trivia: arr(o.trivia).slice(0, 500).map(sanitizeQuestion).filter((q): q is NonNullable<typeof q> => !!q),
+    playScores: cleanScores(o.playScores, people),
     gameEntries: typeof o.gameEntries === 'string' ? o.gameEntries.slice(0, 2000) : '',
     ...(ID_RE.test(String(link.inviteId)) && TOKEN_RE.test(String(link.token)) ? { link: { inviteId: String(link.inviteId), token: String(link.token), joinedAt: num(link.joinedAt) } } : {}),
   };
