@@ -2,7 +2,7 @@ const $=s=>document.querySelector(s);
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const svg=(tag,attrs={})=>{const n=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n;};
 const stage=$('#stage'),connection=$('#connection'),message=$('#message');
-let state=null,credential=null,busy=false,available=false,epoch=0,clockOffset=0,raf=0,interval=0,visual=null,renderedKey='';
+let state=null,credential=null,busy=false,available=false,epoch=0,clockOffset=0,raf=0,interval=0,visual=null,renderedKey='',stageKey='',requestAction=null,pendingFlip=null;
 const motion=matchMedia('(prefers-reduced-motion: reduce)');
 const colors=['#187953','#df9f2d','#397cb5','#cb7456','#8065b6','#369a91','#be5876','#6c7a39'];
 const gameName={wheel:'Lucky wheel',race:'Duck race',trivia:'Team trivia',memory:'Memory match',bingo:'Team bingo',charades:'Charades',drawing:'Draw & guess',custom_trivia:'Custom trivia'};
@@ -25,11 +25,11 @@ const now=()=>Date.now()+clockOffset;
 const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
 const safeErrors={STROKE_UNAVAILABLE:'Drawing changed or the stroke limit was reached.',INVALID_QUESTION:'Enter a question and four different answers.',LOBBY_CHANGED:'Room changed; try again after synchronization.',ACCESSORY_LOCKED:'Unlock this accessory through games.',GUESS_UNAVAILABLE:'Wait a moment or check whether this round has ended.',PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
- for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||profileBusy||!available||!!resumeId||b.dataset.locked==='true';for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
-function reset(text){epoch++;drawActive=false;pendingStroke=null;keyboardRound='';forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';stopVisual();visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
+ for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||profileBusy||!available||!!resumeId||b.dataset.locked==='true';for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else if(b.classList.contains('memory-card'))b.disabled=!!pendingFlip||(busy&&requestAction!=='state')||b.dataset.locked==='true';else b.disabled=busy||b.dataset.locked==='true';}}
+function reset(text){epoch++;drawActive=false;pendingStroke=null;pendingFlip=null;requestAction=null;stageKey='';keyboardRound='';forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';stopVisual();visual=null;$('#room').hidden=true;$('#profile-room').open=false;$('#profile-room-content').replaceChildren();lastProfileKey='';lastBoardKey='';$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
 async function send(body,auth=credential){
  if(busy||!available)return;
- const e=epoch,started=Date.now();busy=true;syncControls();
+ const e=epoch,started=Date.now();requestAction=body.action;busy=true;syncControls();
  try{
   const res=await fetch('/api/rooms/command',{method:'POST',credentials:'omit',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(6000),headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer '+auth}:{})},body:JSON.stringify(body)});
   let data;try{data=await res.json();}catch{throw Error('ROOM_UNAVAILABLE');}
@@ -43,9 +43,36 @@ async function send(body,auth=credential){
   if(body.action!=='state')say('');
   render();
  }catch(err){if(e===epoch){connected('Connection interrupted');say(safeErrors[err.message]??'Connection interrupted. Reconnecting to the saved room; check the server state before retrying.');}}
- finally{if(e===epoch){busy=false;syncControls();flushStroke();}}
+ finally{if(e===epoch){busy=false;requestAction=null;syncControls();flushStroke();flushFlip();}}
 }
 const cmd=(action,rest={})=>state&&send({action,roomId:state.roomId,...rest});
+function eligibleFlip(p){const q=state?.round;return state?.roomId===p.roomId&&state.phase==='playing'&&q?.game==='memory'&&q.id===p.roundId&&q.turn===p.turn&&!q.locked&&!q.complete&&q.cards[p.card]===null;}
+function queueFlip(roundId,card){
+ const q=state?.round;if(!q||pendingFlip||(busy&&requestAction!=='state'))return;
+ const p={roomId:state.roomId,roundId,turn:q.turn,card};
+ if(!eligibleFlip(p))return;
+ pendingFlip=p;syncControls();flushFlip();
+}
+function flushFlip(){
+ if(busy||!pendingFlip)return;
+ const p=pendingFlip;pendingFlip=null;
+ if(eligibleFlip(p))cmd('flip',{roundId:p.roundId,turn:p.turn,card:p.card});
+ else{say('Your board changed. Choose an available card.');syncControls();}
+}
+function updateMemoryBoard(q,phase){
+ const grid=stage.querySelector('.memory-grid');
+ if(!grid||grid.dataset.round!==q.id)return false;
+ grid.dataset.turn=String(q.turn);grid.dataset.matched=String(q.matched);
+ stage.querySelector('.memory-progress').textContent=q.matched+' / 8 pairs matched · '+(q.complete?'Board complete':q.locked?'Remember the cards…':'Find matching symbols');
+ for(const [i,b] of Array.from(grid.children).entries()){
+  const v=q.cards[i],label=v===null?'?':symbols[v];
+  if(b.textContent!==label)b.textContent=label;
+  b.classList.toggle('revealed',v!==null);
+  b.setAttribute('aria-label','Card '+(i+1)+(v===null?' hidden':', '+symbols[v]));
+  b.dataset.locked=String(phase!=='playing'||q.complete||q.locked||v!==null);
+ }
+ return true;
+}
 
 let drawActive=false,drawColor='ink',pendingStroke=null,keyboardRound='',keyboardCursor=[500,500];
 function flushStroke(){if(busy||drawActive||!pendingStroke)return;const p=pendingStroke;pendingStroke=null;if(state?.roomId===p.roomId&&state?.round?.id===p.roundId&&state.phase==='playing'&&state.round.strokes.length===p.index)cmd('draw_stroke',{roundId:p.roundId,index:p.index,color:p.color,points:p.points});else if(state){renderedKey='';render();}}
@@ -192,8 +219,8 @@ function renderStage(){
   const grid=el('div',undefined,'bingo-grid');q.board.forEach((v,i)=>{const marked=i===12||q.marks.includes(i),called=q.calls.includes(v);const b=control(i===12?'FREE':String(v),()=>cmd('bingo_mark',{roundId:q.id,card:i}),'bingo-cell'+(marked?' marked':called?' called':''));b.setAttribute('aria-label',i===12?'Free space':'Number '+v+(marked?' marked':called?' called':' not called'));b.dataset.locked=String(s.phase!=='playing'||marked||!called);grid.append(b);});stage.append(grid,el('p','Mark called numbers. Complete any row, column or diagonal.','muted'));
  }
  if(q.game==='memory'){
-  stage.append(el('p',q.matched+' / 8 pairs matched · '+(q.complete?'Board complete':q.locked?'Remember the cards…':'Find matching symbols')));const grid=el('div',undefined,'memory-grid');
-  q.cards.forEach((v,i)=>{const b=control(v===null?'?':symbols[v],()=>cmd('flip',{roundId:q.id,turn:q.turn,card:i}),'memory-card'+(v!==null?' revealed':''));b.setAttribute('aria-label','Card '+(i+1)+(v===null?' hidden':', '+symbols[v]));b.dataset.locked=String(s.phase!=='playing'||q.complete||q.locked||v!==null);grid.append(b);});stage.append(grid);const timer=el('div',undefined,'timer'),bar=el('span');timer.append(bar);stage.append(timer);visual={type:'timer',bar};
+  stage.append(el('p','','memory-progress'));const grid=el('div',undefined,'memory-grid');grid.dataset.round=q.id;
+  q.cards.forEach((_,i)=>{const b=control('?',()=>queueFlip(q.id,i),'memory-card');grid.append(b);});stage.append(grid);updateMemoryBoard(q,s.phase);const timer=el('div',undefined,'timer'),bar=el('span');timer.append(bar);stage.append(timer);visual={type:'timer',bar};
  }
  if(['trivia','custom_trivia'].includes(q.game)){
   if(q.game==='custom_trivia')stage.append(el('p','Practice only · no points or tournament credit','world-label'));
@@ -248,7 +275,18 @@ function render(){
  const show=state.host&&state.phase==='lobby';
  $('#invite-panel').hidden=!show;
  const key=state.roomId+':'+state.version+':'+state.me+':'+JSON.stringify(state.season??[])+':'+(state.round?.game==='memory'?JSON.stringify(state.round.cards)+state.round.locked:state.round?.game==='bingo'?state.round.calls.length:'')+':'+(state.profile?JSON.stringify(state.profile):'');
- if(key!==renderedKey){renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}renderStage();drawRoomProfile();}else if(motion.matches&&visual)animate();
+ if(key!==renderedKey){
+  renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);
+  if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}
+  const q=state.round,localKey=q?.game==='memory'?JSON.stringify([state.roomId,q.id,state.phase,q.turn,q.cards,q.locked,q.complete]):key;
+  if(localKey!==stageKey){
+   const sameMemory=q?.game==='memory'&&state.phase==='playing'&&stage.querySelector('.memory-grid')?.dataset.round===q.id&&!stage.querySelector('.result');
+   if(sameMemory)updateMemoryBoard(q,state.phase);else renderStage();
+   stageKey=localKey;
+  }
+  drawRoomProfile();
+ }
+ if(motion.matches&&visual)animate();
  syncControls();
 
 }
@@ -259,9 +297,9 @@ $('#copy').addEventListener('click',async()=>{if(!state?.invite)return;const lin
 const invite=/^#join=([a-f0-9]{32})$/.exec(location.hash)?.[1];
 if(invite){forgetSession();$('#join input[name=invite]').value=invite;history.replaceState(null,'',location.pathname);$('#join input[name=name]').focus();}
 async function health(){if(healthBusy)return;healthBusy=true;lastHealth=Date.now();try{const res=await fetch('/api/rooms/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});const d=await res.json();if(!res.ok||d.available!==true)throw Error();available=true;connected('Staging room service');say('');}catch{available=false;connected('Preview only');say('Shared rooms require the isolated room server. This static preview does not connect to a live backend.');}healthBusy=false;syncControls();if(available&&profileSecret)await loadProfile();if(available&&!invite){const saved=readSession();if(saved){credential=saved.credential;resumeId=saved.roomId;await send({action:'state',roomId:resumeId});}}}
-interval=setInterval(()=>{if(!busy&&!drawActive&&!pendingStroke&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
+interval=setInterval(()=>{if(!busy&&!drawActive&&!pendingStroke&&!pendingFlip&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
 document.addEventListener('visibilitychange',()=>{document.documentElement.classList.toggle('motion-paused',document.hidden);if(document.hidden)stopVisual();else if(state){if(!drawActive)cmd('state');animate();}});
 motion.addEventListener('change',()=>animate());
-window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;drawActive=false;pendingStroke=null;stopVisual();credential=null;state=null;});
+window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;drawActive=false;pendingStroke=null;pendingFlip=null;requestAction=null;stopVisual();credential=null;state=null;});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 drawEntryProfile();health();
