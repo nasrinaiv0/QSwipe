@@ -17,3 +17,31 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+
+  postgres-authorization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: qswipe_test
+          POSTGRES_PASSWORD: disposable-ci-only
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qswipe_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Execute migration and fictional authorization assertions in disposable PostgreSQL
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test -n "$PG_CONTAINER"
+          for file in test/postgres/bootstrap.sql supabase/migrations/20261123000000_qswipe_staging_identity_rbac.sql test/postgres/authorization.sql; do
+            docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
+          done
