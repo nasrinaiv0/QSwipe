@@ -75,7 +75,35 @@ try{
  await host.getByRole('button',{name:'Back to lobby'}).click();await host.getByRole('button',{name:/Memory match/}).click();
  for(const p of pages)await p.locator('.memory-grid').waitFor();
  await guest.screenshot({path:'live-room-previews/17-memory-mobile.png',fullPage:true,animations:'disabled'});
- for(let i=0;i<8;i++)for(const p of pages){await p.locator('.memory-card').nth(i).click();await p.locator('.memory-card.revealed').filter({hasText:/./}).nth(i*2).waitFor();await p.locator('.memory-card').nth(i+8).click();await p.waitForFunction(count=>document.querySelectorAll('.memory-card.revealed').length===count,2*(i+1));}
+ // Reproduce input during a real pending state poll, while another player changes the room revision.
+ const board=p=>p.locator('.memory-grid');
+ const card=(p,i)=>p.locator('.memory-card').nth(i);
+ const ack=async(p,turn,matched)=>{await p.locator('.memory-grid[data-turn="'+turn+'"][data-matched="'+matched+'"]').waitFor({timeout:10000});};
+ for(const p of pages)await ack(p,0,0);
+ await host.evaluate(()=>{window.__memoryBoard=document.querySelector('.memory-grid');window.__memoryFirst=document.querySelector('.memory-card');});
+ let unblock,seen;const gate=new Promise(r=>{unblock=r;}),pollSeen=new Promise(r=>{seen=r;});let held=false;
+ const delayPoll=async route=>{const request=route.request();if(!held&&request.method()==='POST'&&request.postDataJSON().action==='state'){held=true;seen();await gate;}await route.continue();};
+ await host.route('**/api/rooms/command',delayPoll);
+ try{
+  await Promise.race([pollSeen,new Promise((_,reject)=>setTimeout(()=>reject(Error('Expected memory state poll')),6000))]);
+  assert.equal(await card(host,0).isEnabled(),true,'eligible card remains available during poll');
+  await card(host,0).click({timeout:3000});assert.equal(await card(host,0).textContent(),'?','no optimistic reveal');
+  assert.equal(await card(host,1).isDisabled(),true,'only one queued selection');
+  await card(guest,0).click();await ack(guest,1,0);
+ }finally{unblock();}
+ await ack(host,1,0);await host.unroute('**/api/rooms/command',delayPoll);
+ assert.equal(await host.evaluate(()=>window.__memoryBoard===document.querySelector('.memory-grid')&&window.__memoryFirst===document.querySelector('.memory-card')),true,'same board and card nodes survive poll and independent mutation');
+ assert.equal(await card(host,0).evaluate(b=>b.classList.contains('revealed')),true);
+ console.log('Memory synchronization acceptance: delayed poll selection committed once, no optimistic reveal, stable card nodes.');
+ // All players act concurrently, but each player's next click is fenced by the exact acknowledged turn.
+ await Promise.all(pages.map(async p=>{
+  for(let i=0;i<8;i++){
+   if(i!==0||p===third){await card(p,i).click();await ack(p,2*i+1,i);}
+   assert.equal(await card(p,i).evaluate(b=>b.classList.contains('revealed')),true);
+   await card(p,i+8).click();await ack(p,2*(i+1),i+1);
+   assert.equal(await card(p,i+8).evaluate(b=>b.classList.contains('revealed')),true);
+  }
+ }));
  for(const p of pages)await p.getByText('Memory match complete · scores updated',{exact:true}).waitFor();
  assert.equal((await scoreMap(host)).reduce((n,x)=>n+x[1],0),370);
  await third.screenshot({path:'live-room-previews/18-memory-dark-results.png',fullPage:true,animations:'disabled'});
