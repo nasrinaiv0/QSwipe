@@ -103,6 +103,7 @@ export interface Workspace {
   invites: Invite[];
   trivia: TriviaQuestion[];
   gameEntries: string;
+  playScores?: import('./engagement').PlayScore[];
   link?: JoinLink;
 }
 
