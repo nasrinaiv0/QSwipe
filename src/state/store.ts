@@ -1,3 +1,4 @@
+import { addScore, type PlayScore } from '../core/engagement';
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
 import { emptyAppData, sanitizeAppData, sanitizeSettings, STORAGE_KEY } from '../core/data';
@@ -425,6 +426,13 @@ export function updateConfig(patch: Partial<WorkspaceConfig>): boolean {
   return true;
 }
 
+export function recordPlayScores(scores: PlayScore[]): number {
+  if (session.previewId) return 0;
+  const allowed=new Set([me(),...visiblePeople()].map(p=>p.id));
+  let ledger=ws().playScores??[],count=0;
+  for(const score of scores){if(!allowed.has(score.playerId))continue;const next=addScore(ledger,score,ws().people,M.isoDate());if(next){ledger=next;count++;}}
+  if(count){ws().playScores=ledger;flush();}return count;
+}
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }
 
