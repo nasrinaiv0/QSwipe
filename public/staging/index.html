@@ -28,6 +28,26 @@
     <p>Lost your authenticator? Sign out and contact the authorized staging administrator for identity-verified recovery. There is no bypass.</p>
    </section>
    <label>Workspace<select id="workspace"></select></label><div id="grants" class="grants"></div>
+   <section id="onboarding-panel" class="p5-card hidden" aria-labelledby="onboarding-title">
+    <div class="p5-heading"><h2 id="onboarding-title">People &amp; scheduling</h2><span class="p5-pill">Server managed</span></div>
+    <p>Invited employees only. Memberships and shifts are managed by an authorized administrator.</p>
+    <p id="onboarding-status" role="status" aria-live="polite"></p>
+    <form id="onboarding-accept"><label>Invitation ID<input id="invite-id" required autocomplete="off" maxlength="36"></label><label>One-time invitation code<input id="invite-code" required type="password" pattern="[a-f0-9]{64}" maxlength="64" autocomplete="off"></label><button type="submit">Accept invitation</button></form>
+    <div id="onboarding-admin" class="hidden">
+     <div class="p5-heading"><h3>Manage assigned unit</h3><span id="onboarding-zone" class="p5-pill">—</span></div>
+     <div class="onboarding-scope"><label>Authorized unit<select id="onboarding-unit"></select></label><button id="onboarding-load" class="secondary" type="button">Load unit</button></div>
+     <div id="onboarding-detail" class="hidden">
+      <section class="onboarding-section"><h3>Invite employee</h3><p>Use an existing, verified staging Auth user ID. Share the generated code privately, never in a URL.</p>
+      <form id="onboarding-invite"><label>Verified user UUID<input id="invite-target" required maxlength="36" autocomplete="off"></label><label>Display name<input id="invite-name" required minlength="2" maxlength="60" autocomplete="off"></label><label>Position<input id="invite-position" required minlength="2" maxlength="80" autocomplete="off"></label><button type="submit">Create invitation</button></form>
+      <div id="invite-result" class="hidden"><p>Share both fields privately with the intended account. Code is not stored in plaintext by the server.</p><label>Invitation ID<input id="invite-created-id" readonly></label><label>Invitation code<input id="invite-created-code" readonly></label><p id="invite-expires"></p><button id="invite-hide" class="secondary" type="button">Hide invitation</button></div>
+      <div id="onboarding-invitations"></div></section>
+      <section class="onboarding-section"><h3>Employee lifecycle</h3><p>Suspension blocks access. Revocation is permanent for this membership. Previous eligibility remains unchanged.</p><div id="onboarding-employees"></div></section>
+      <section class="onboarding-section"><h3>Create shift</h3><p>Use the workspace timezone. Enter the next calendar day for overnight shifts, and each boundary's UTC offset in minutes (Manila: +480). DST gaps and incorrect offsets are rejected by the server.</p>
+      <form id="onboarding-schedule"><label>Local start<input id="shift-start" type="datetime-local" required></label><label>Start UTC offset (minutes)<input id="shift-start-offset" type="number" min="-840" max="840" step="1" required></label><label>Local end<input id="shift-end" type="datetime-local" required></label><label>End UTC offset (minutes)<input id="shift-end-offset" type="number" min="-840" max="840" step="1" required></label><button type="submit">Schedule shift</button></form>
+      <p class="p5-small">Eligibility is snapshotted at creation. New hires are not added retroactively. Recent 30 shifts only.</p><div id="onboarding-shifts"></div></section>
+     </div>
+    </div><button id="onboarding-retry" class="secondary hidden" type="button">Retry identical request</button>
+   </section>
    <button type="button" id="load-roster">Load authorized roster</button><p id="roster-status" role="status" aria-live="polite"></p>
    <div class="scroll"><table><thead><tr><th>Name</th><th>Position</th><th>Unit</th></tr></thead><tbody id="roster"></tbody></table></div>
    <section id="p5-workspace" class="p5 hidden" aria-labelledby="p5-title">
