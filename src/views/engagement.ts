@@ -11,7 +11,7 @@ export function clearChallenge(){round=null;saved=0;period='week';}
 function stats(){return leaderboard(S.ws().playScores??[],players(),isoDate(),'all');}
 export function engagementSummary(){
  const mine=stats().find(x=>x.person.id===S.me().id);
- return `<section class="card engage-summary"><div class="card-head"><div><span class="eyebrow">Team huddle</span><h2>Play together</h2><p class="sub">Quick games and friendly challenges.</p></div><span class="engage-emblem" aria-hidden="true">✦</span></div><div class="engage-summary-foot"><span><strong>${mine?.points??0}</strong> local points</span><a class="btn primary" href="#/play/challenge">${icon('play')}Team challenge</a></div></section>`;
+ return `<section class="card engage-summary"><div class="card-head"><div><span class="eyebrow">Team huddle</span><h2>Play together</h2><p class="sub">Quick games and friendly challenges.</p></div><span class="engage-emblem" aria-hidden="true">✦</span></div><div class="engage-summary-foot"><span><strong>${mine?.points??0}</strong> local points</span><a class="btn primary" href="#/play/challenge">${icon('play')}Team challenge</a><a class="btn" href="./rooms/">Live rooms</a></div></section>`;
 }
 export function challengeView(){
  const all=stats(),mine=all.find(x=>x.person.id===S.me().id),leaders=leaderboard(S.ws().playScores??[],players(),isoDate(),period);
