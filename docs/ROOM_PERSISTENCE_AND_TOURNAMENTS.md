@@ -13,3 +13,5 @@ Initial disposable PostgreSQL RPC operations succeeded, but the fixture's privil
 Browser fixture found the skin button accessible name included its decorative duck emoji. Mark the icon decorative and label the control explicitly; preserve tournament draft fields on version refresh. Rerun exact-head checks.
 
 The fixture edit collapsed PostgreSQL dollar delimiters during string replacement. Restore both literal delimiters with a callback replacement; no schema change.
+
+Browser acceptance showed the host could submit tournament creation with a stale version immediately after a guest skin change. Keep server version fencing, expose the rendered revision for acceptance, wait for convergence and show an actionable retry message. No optimistic score mutation.
