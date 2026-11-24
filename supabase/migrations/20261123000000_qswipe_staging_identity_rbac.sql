@@ -214,7 +214,7 @@ grant usage on schema qs_stg_private to authenticated;
 
 create function qs_stg_private.roster_visible(p_roster_id uuid) returns boolean
   language sql stable security definer set search_path = ''
-as $
+as $qs_roster$
   select coalesce(
     (select auth.uid()) is not null
     and coalesce((select auth.jwt()->>'is_anonymous'),'false') <> 'true'
@@ -241,7 +241,7 @@ as $
           ))
         )
     ), false);
-$;
+$qs_roster$;
 revoke all on function qs_stg_private.roster_visible(uuid) from public, anon, authenticated;
 grant execute on function qs_stg_private.roster_visible(uuid) to authenticated;
 comment on function qs_stg_private.roster_visible(uuid) is
