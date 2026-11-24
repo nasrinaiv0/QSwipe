@@ -1,3 +1,4 @@
+import { historicalPerson, HISTORY_LIMIT, initializeHistory } from './history';
 import { cleanScores } from './engagement';
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
 import { sanitizeQuestion } from './games';
@@ -103,12 +104,24 @@ export function sanitizeWorkspace(input: unknown): Workspace | null {
   const ids = new Set(people.map(p => p.id));
   const ownerId = ids.has(String(o.ownerId)) ? String(o.ownerId) : people.find(p => !p.parentId)!.id;
   const meId = ids.has(String(o.meId)) ? String(o.meId) : ownerId;
-  const attendance = dayMap<AttendanceRecord>(o.attendance, ids, rec => {
+  const historyMap = new Map<string, NonNullable<Workspace['rosterHistory']>[number]>();
+  for (const raw of arr(o.rosterHistory).slice(-HISTORY_LIMIT)) {
+    const snap = obj(raw);
+    if (!isIsoDate(snap.date)) continue;
+    const members = sanitizePeople(snap.people).map(historicalPerson);
+    if (!members.length) continue;
+    const days = [...new Set(arr(snap.days).filter((d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6))];
+    if (!days.length) continue;
+    historyMap.set(snap.date as string, { date: snap.date as string, days, people: members });
+  }
+  const rosterHistory = [...historyMap.values()].sort((a,b)=>a.date.localeCompare(b.date)).slice(-HISTORY_LIMIT);
+  const historicalIds = new Set([...ids,...rosterHistory.flatMap(s=>s.people.map(p=>p.id))]);
+  const attendance = dayMap<AttendanceRecord>(o.attendance, historicalIds, rec => {
     const s = statusOf(rec);
     if (!s) return null;
     const r = obj(rec);
     const via = ['swipe', 'pass', 'self', 'correction'].includes(String(r.via)) ? (r.via as AttendanceRecord['via']) : undefined;
-    return { s, at: num(r.at), by: ids.has(String(r.by)) ? String(r.by) : meId, ...(via ? { via } : {}) };
+    return { s, at: num(r.at), by: historicalIds.has(String(r.by)) ? String(r.by) : meId, ...(via ? { via } : {}) };
   });
   const commitments = dayMap<CommitmentRecord>(o.commitments, ids, rec => {
     const r = obj(rec);
@@ -139,14 +152,16 @@ export function sanitizeWorkspace(input: unknown): Workspace | null {
     return [{ id: String(i.id), token: String(i.token), parentId: String(i.parentId), level: i.level as Level, createdBy: String(i.createdBy), createdAt: num(i.createdAt), expiresAt: num(i.expiresAt), maxUses: Math.max(1, Math.min(500, num(i.maxUses, 25))), uses: Math.max(0, num(i.uses)), ...(i.revoked === true ? { revoked: true } : {}) }];
   });
   const link = obj(o.link);
-  return {
+  const workspace: Workspace = {
     id, createdAt: num(o.createdAt, Date.now()), config: sanitizeConfig(o.config, configFromPreset('custom', 'Workspace')),
-    ownerId, meId, people, policy: sanitizePolicy(o.policy), attendance, commitments, announcements, acked, audit, invites,
+    ownerId, meId, people, policy: sanitizePolicy(o.policy), attendance, rosterHistory, commitments, announcements, acked, audit, invites,
     trivia: arr(o.trivia).slice(0, 500).map(sanitizeQuestion).filter((q): q is NonNullable<typeof q> => !!q),
     playScores: cleanScores(o.playScores, people),
     gameEntries: typeof o.gameEntries === 'string' ? o.gameEntries.slice(0, 2000) : '',
     ...(ID_RE.test(String(link.inviteId)) && TOKEN_RE.test(String(link.token)) ? { link: { inviteId: String(link.inviteId), token: String(link.token), joinedAt: num(link.joinedAt) } } : {}),
   };
+  initializeHistory(workspace);
+  return workspace;
 }
 
 export function sanitizeAppData(input: unknown): AppData {
