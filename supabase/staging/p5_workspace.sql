@@ -10,9 +10,20 @@ declare
   item record;
   result jsonb:='[]'::jsonb;
   snapshot jsonb;
+  sid uuid;
+  active boolean;
 begin
-  if not exists(select 1 from qs_stg_private.p5_gate where singleton and enabled) then raise exception 'QS_DISABLED'; end if;
+  select enabled into active from qs_stg_private.p5_gate where singleton for share;
+  if active is distinct from true then raise exception 'QS_DISABLED'; end if;
+  select enabled into active from qs_stg_private.p4_gate where singleton for share;
+  if active is distinct from true then raise exception 'QS_DISABLED'; end if;
+  select enabled into active from qs_stg_private.p3_gate where singleton for share;
+  if active is distinct from true then raise exception 'QS_DISABLED'; end if;
   if p_roster is null or auth.uid() is null or not qs_stg_private.roster_visible(p_roster) then raise exception 'QS_FORBIDDEN'; end if;
+  if auth.jwt()->>'role' is distinct from 'authenticated' or auth.jwt()->>'is_anonymous' is distinct from 'false' then raise exception 'QS_FORBIDDEN'; end if;
+  begin sid:=(auth.jwt()->>'session_id')::uuid; exception when invalid_text_representation then raise exception 'QS_FORBIDDEN'; end;
+  perform 1 from auth.sessions s join auth.users u on u.id=s.user_id where s.id=sid and s.user_id=auth.uid() and u.email_confirmed_at is not null and (s.not_after is null or s.not_after>clock_timestamp()) for share of s,u;
+  if not found then raise exception 'QS_FORBIDDEN'; end if;
   -- The candidate query is bounded and never returned without P3 authorization.
   -- P3 locks and validates session, current actor, target and unit for each pair.
   for item in
