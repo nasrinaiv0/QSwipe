@@ -44,7 +44,15 @@
       <section class="onboarding-section"><h3>Employee lifecycle</h3><p>Suspension blocks access. Revocation is permanent for this membership. Previous eligibility remains unchanged.</p><div id="onboarding-employees"></div></section>
       <section class="onboarding-section"><h3>Create shift</h3><p>Use the workspace timezone. Enter the next calendar day for overnight shifts, and each boundary's UTC offset in minutes (Manila: +480). DST gaps and incorrect offsets are rejected by the server.</p>
       <form id="onboarding-schedule"><label>Local start<input id="shift-start" type="datetime-local" required></label><label>Start UTC offset (minutes)<input id="shift-start-offset" type="number" min="-840" max="840" step="1" required></label><label>Local end<input id="shift-end" type="datetime-local" required></label><label>End UTC offset (minutes)<input id="shift-end-offset" type="number" min="-840" max="840" step="1" required></label><button type="submit">Schedule shift</button></form>
-      <p class="p5-small">Eligibility is snapshotted at creation. New hires are not added retroactively. Recent 30 shifts only.</p><div id="onboarding-shifts"></div></section>
+      <p class="p5-small">Eligibility is snapshotted at creation. New hires are not added retroactively. Recent 30 shifts only.</p><div id="onboarding-shifts"></div></section><section id="workforce-panel" class="onboarding-section hidden" aria-labelledby="workforce-title">
+<div class="p5-heading"><h3 id="workforce-title">Workforce planning &amp; history</h3><span class="p5-pill">Scoped · server verified</span></div>
+<p>Choose a reporting period of up to 31 days. Retired versions remain in history but do not count toward active totals.</p>
+<form id="workforce-report"><label>From date<input id="wf-from" type="date" required></label><label>Through date<input id="wf-to" type="date" required></label><button type="submit">Load historical report</button></form>
+<p id="wf-status" role="status" aria-live="polite"></p>
+<div class="adapter-metrics" id="wf-metrics"></div><div id="wf-rows"></div>
+<form id="wf-command"><label>Operation<select id="wf-action"><option value="repeat">Recurring weekly shifts</option><option value="edit">Replace future shift</option><option value="cancel">Cancel future shift</option><option value="transfer">Transfer employee</option><option value="leave">Record approved leave</option><option value="cancel_leave">Cancel leave</option><option value="holiday">Classify holiday</option></select></label><div id="wf-fields" class="wf-fields"></div><button type="submit">Submit verified command</button></form>
+<p class="p5-small">Use existing session/roster/unit UUIDs. Schedule edits and leave require current versions. Holidays are administrative labels, not statutory pay calculations.</p><button id="wf-retry" type="button" class="secondary hidden">Retry identical command</button>
+</section>
      </div>
     </div><button id="onboarding-retry" class="secondary hidden" type="button">Retry identical request</button>
    </section>
