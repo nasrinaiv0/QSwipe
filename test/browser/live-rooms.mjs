@@ -75,7 +75,7 @@ try{
  await host.getByRole('button',{name:'Back to lobby'}).click();await host.getByRole('button',{name:/Memory match/}).click();
  for(const p of pages)await p.locator('.memory-grid').waitFor();
  await guest.screenshot({path:'live-room-previews/17-memory-mobile.png',fullPage:true,animations:'disabled'});
- await Promise.all(pages.map(async p=>{for(let i=0;i<8;i++){await p.locator('.memory-card').nth(i).click();await p.locator('.memory-card').nth(i+8).click();}}));
+ for(let i=0;i<8;i++)for(const p of pages){await p.locator('.memory-card').nth(i).click();await p.locator('.memory-card.revealed').filter({hasText:/./}).nth(i*2).waitFor();await p.locator('.memory-card').nth(i+8).click();await p.waitForFunction(count=>document.querySelectorAll('.memory-card.revealed').length===count,2*(i+1));}
  for(const p of pages)await p.getByText('Memory match complete · scores updated',{exact:true}).waitFor();
  assert.equal((await scoreMap(host)).reduce((n,x)=>n+x[1],0),370);
  await third.screenshot({path:'live-room-previews/18-memory-dark-results.png',fullPage:true,animations:'disabled'});
