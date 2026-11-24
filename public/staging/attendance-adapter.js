@@ -53,7 +53,7 @@ export function createAttendanceAdapter({call,context,refresh,refreshReport,noti
  async function issue(){
   const c=context();if(!enabled||!c?.own||c.version!==0||c.locked||busy||!navigator.onLine)return;
   const g=generation;clearPass();busy=true;update();
-  try{const data=await call('attendance',{action:'issue',sessionId:c.sessionId,rosterId:c.rosterId});if(g!==generation||key(context())!==key(c))return;drawPass(data);tell('Pass issued by server. It is single-use.');}
+  try{const data=await call('attendance',{action:'issue',sessionId:c.sessionId,rosterId:c.rosterId});if(g!==generation||key(context())!==key(c)||document.hidden)return;drawPass(data);tell('Pass issued by server. It is single-use.');}
   catch{if(g===generation)tell('Unable to issue pass. Check session, account and connection.');}
   finally{if(g===generation){busy=false;update();}}
  }
