@@ -279,7 +279,7 @@ function render(){
   renderedKey=key;const boardKey=state.roomId+':'+state.version+':'+JSON.stringify(state.season??[]);
   if(boardKey!==lastBoardKey){lastBoardKey=boardKey;drawBoard();drawSeason();if(show)drawQR();drawExtras();}
   const q=state.round,localKey=q?.game==='memory'?JSON.stringify([state.roomId,q.id,state.phase,q.turn,q.cards,q.locked,q.complete]):key;
-  if(localKey!==stageKey){
+  if(q?.game!=='memory'||localKey!==stageKey){
    const sameMemory=q?.game==='memory'&&state.phase==='playing'&&stage.querySelector('.memory-grid')?.dataset.round===q.id&&!stage.querySelector('.result');
    if(sameMemory)updateMemoryBoard(q,state.phase);else renderStage();
    stageKey=localKey;
