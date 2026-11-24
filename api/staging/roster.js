@@ -13,6 +13,10 @@ export default async function handler(req, res) {
       select: 'id,workspace_id,unit_id,display_name_snapshot,position_snapshot',
       workspace_id: `eq.${workspaceId}`, limit: '100'
     });
-    respond(res, 200, { workspaceId, rows: rows.filter(r => r.workspace_id === workspaceId).slice(0, 100) });
+    respond(res, 200, { workspaceId, rows: rows.filter(r => r && r.workspace_id === workspaceId).slice(0, 100).map(r => ({
+      id: validUuid(r.id), workspace_id: workspaceId, unit_id: validUuid(r.unit_id),
+      display_name_snapshot: typeof r.display_name_snapshot === 'string' ? r.display_name_snapshot.slice(0, 60) : '',
+      position_snapshot: typeof r.position_snapshot === 'string' ? r.position_snapshot.slice(0, 80) : ''
+    })) });
   } catch (error) { fail(res, error); }
 }
