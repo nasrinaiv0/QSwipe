@@ -1236,3 +1236,5 @@ dialog { color: var(--ink); }
 .row > .i, .picker-item > .i, .o-row > .i { width: 16px; height: 16px; color: var(--muted); }
 .hbar .fill, .hbar .target, .meter .target { display: block; }
 .step > span { min-width: 0; }
+
+.secure-entry{flex-shrink:0;white-space:nowrap}@media(max-width:530px){.secure-entry span{display:none}.secure-entry{min-width:44px;min-height:44px;padding:8px}}
