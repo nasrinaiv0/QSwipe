@@ -87,6 +87,8 @@ export interface JoinLink {
   joinedAt: number;
 }
 
+export interface RosterSnapshot { date: string; days: number[]; people: Person[] }
+
 export interface Workspace {
   id: string;
   createdAt: number;
@@ -96,6 +98,7 @@ export interface Workspace {
   people: Person[];
   policy: Policy;
   attendance: Record<string, Record<string, AttendanceRecord>>;
+  rosterHistory?: RosterSnapshot[];
   commitments: Record<string, Record<string, CommitmentRecord>>;
   announcements: Announcement[];
   acked: Record<string, Record<string, number>>;

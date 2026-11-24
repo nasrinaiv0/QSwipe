@@ -33,7 +33,9 @@ try{
  for(const p of pages)await p.waitForFunction(()=>document.querySelector('#count').textContent==='3 / 12');
  await host.screenshot({path:'live-room-previews/02-host-lobby-qr.png',fullPage:true,animations:'disabled'});
  await guest.screenshot({path:'live-room-previews/03-guest-mobile-lobby.png',fullPage:true,animations:'disabled'});
+ await host.locator('#skin-panel > summary').click();await guest.locator('#skin-panel > summary').click();
  await host.getByRole('button',{name:'mint',exact:true}).click();await guest.getByRole('button',{name:'berry',exact:true}).click();await guest.waitForFunction(()=>document.querySelector('[aria-label=berry]')?.getAttribute('aria-pressed')==='true');const revision=await guest.locator('#room').getAttribute('data-version');await host.waitForFunction(v=>document.querySelector('#room').dataset.version===v,revision);
+ await host.locator('.tournament-setup > summary').click();
  await host.getByRole('textbox',{name:'Tournament title'}).fill('Orion Friday Cup');await host.getByRole('combobox',{name:'Trophy style'}).selectOption('Golden duck');await host.getByRole('button',{name:'Create tournament'}).click();await host.getByText('Orion Friday Cup',{exact:true}).waitFor();
  await host.screenshot({path:'live-room-previews/14-tournament-lobby.png',fullPage:true,animations:'disabled'});
  assert.equal(await guest.getByRole('button',{name:/Lucky wheel/}).isDisabled(),true);

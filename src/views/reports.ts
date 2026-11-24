@@ -1,5 +1,6 @@
+import { historicalBranch, historicalPeople, historicalScope, historicalSeries, reportDates, rosterAt, snapshotAt } from '../core/history';
 import { bus } from '../bus';
-import { attendanceRate, dailySeries, descendants, directReports, isoDate, personSummary, relativeTime, requiredLevel, sessionDates, statusOf, summarize, toCSV, type RosterStats } from '../core/model';
+import { attendanceRate, directReports, isoDate, personSummary, relativeTime, requiredLevel, statusOf, summarize, toCSV, type RosterStats } from '../core/model';
 import type { Person } from '../core/types';
 import * as S from '../state/store';
 import { $, $$, avatar, download, emptyState, esc, fmtDate, hideTooltip, icon, lockedPanel, plural, showTooltip, statusPill, toast } from '../ui/kit';
@@ -7,12 +8,21 @@ import { kpi, options, pageHead, type View } from './common';
 
 type Day = RosterStats & { date: string };
 
-function scopePeople(): Person[] {
-  const all = S.visiblePeople(), sel = S.session.ui.reportBranch;
-  if (sel === 'all') return all;
-  const ids = new Set(descendants(S.org(), sel).map(p => p.id));
-  return all.filter(p => ids.has(p.id));
-}
+let dateCache = new Map<string,Person[]>(), eligibleCache = new Map<string,Set<string>>();
+const clearReportCache = () => { dateCache=new Map();eligibleCache=new Map(); };
+const dateScope = (date: string) => {
+  if(!dateCache.has(date))dateCache.set(date,historicalScope(S.ws(),S.me(),date,S.session.ui.reportBranch));
+  return dateCache.get(date)!;
+};
+const eligibleIds = (date: string) => {
+  if(!eligibleCache.has(date))eligibleCache.set(date,new Set(dateScope(date).map(p=>p.id)));
+  return eligibleCache.get(date)!;
+};
+const datesFor = (count: number) => reportDates(S.ws(), S.session.today, count);
+const scopePeople = (dates: string[]) => historicalPeople(S.ws(), S.me(), dates, S.session.ui.reportBranch);
+const seriesFor = (dates: string[]) => historicalSeries(S.ws(), S.me(), dates, S.session.ui.reportBranch);
+const eligibleDates = (p: Person, dates: string[]) => dates.filter(d=>eligibleIds(d).has(p.id));
+const reportBranch = (p: Person, dates: string[]) => { const d=eligibleDates(p,dates).at(-1);return d?historicalBranch(S.ws(),p,d):''; };
 
 function leaders(people: Person[]): Person[] {
   const ids = new Set(people.map(p => p.id));
@@ -55,7 +65,7 @@ function register(people: Person[], dates: string[]): string {
   const { reportSort: sort, reportQuery } = S.session.ui;
   const recordsFor = (d: string) => S.ws().attendance[d];
   const q = reportQuery.trim().toLowerCase();
-  const rows = people.filter(p => !q || `${p.name} ${S.branchName(p)}`.toLowerCase().includes(q)).map(p => ({ p, branch: S.branchName(p), ...personSummary(p, recordsFor, dates), today: statusOf(S.records(S.session.today)[p.id]) }));
+  const rows = people.filter(p => !q || `${p.name} ${reportBranch(p,dates)}`.toLowerCase().includes(q)).map(p => ({ p, branch: reportBranch(p,dates), ...personSummary(p, recordsFor, eligibleDates(p,dates)), today: eligibleIds(S.session.today).has(p.id)?statusOf(S.records(S.session.today)[p.id]):undefined }));
   type Row = (typeof rows)[number];
   const get = (r: Row): string | number => {
     const k = sort.key;
@@ -76,15 +86,16 @@ const COLS: [string, string, boolean][] = [['name', 'Name', false], ['branch', '
 
 export const reports: View = {
   render() {
+    clearReportCache();
     const cfg = S.cfg();
     if (!S.can('reports.view')) return `${pageHead({ title: 'Reports' })}<section class="card">${lockedPanel({ title: 'Reports are locked for your level', need: cfg.titles[Math.min(3, requiredLevel(S.ws().policy, 'reports.view')) as 0] })}</section>`;
-    const ui = S.session.ui, people = scopePeople(), lead = leaders(S.visiblePeople());
-    const all = sessionDates(S.session.today, ui.reportRange * 2, cfg.days, S.startDate());
-    const dates = all.slice(-ui.reportRange), prev = all.slice(0, Math.max(0, all.length - ui.reportRange));
+    const ui = S.session.ui, lead = leaders(S.visiblePeople());
+    const all = datesFor(ui.reportRange * 2);
+    const dates = all.slice(-ui.reportRange), prev = all.slice(0, Math.max(0, all.length - ui.reportRange)), people=scopePeople(dates);
     const recordsFor = (d: string) => S.ws().attendance[d];
-    const series = dailySeries(people, recordsFor, dates), total = summarize(series), before = summarize(dailySeries(people, recordsFor, prev));
+    const series = seriesFor(dates), total = summarize(series), before = summarize(seriesFor(prev));
     const delta = total.rate !== null && before.rate !== null ? total.rate - before.rate : null;
-    const perfect = people.filter(p => { const s = personSummary(p, recordsFor, dates); return s.present > 0 && s.absent === 0; }).length;
+    const perfect = people.filter(p => { const s = personSummary(p, recordsFor, eligibleDates(p,dates)); return s.present > 0 && s.absent === 0 && s.pending === 0; }).length;
     const canExport = S.can('reports.export');
     const head = pageHead({ title: 'Reports', lede: `${S.scopeLabel()} · ${plural(people.length, 'person', 'people')} · last ${plural(dates.length, 'session')}`, actions: `
       <div class="seg" role="tablist" aria-label="Range">${[5, 10, 20].map(n => `<button type="button" role="tab" data-action="rep-range" data-n="${n}" aria-selected="${ui.reportRange === n}">${n} sessions</button>`).join('')}</div>
@@ -92,11 +103,9 @@ export const reports: View = {
       <button class="btn sm ${canExport ? '' : 'ghost'}" type="button" data-action="rep-export" ${canExport ? '' : `disabled title="Requires ${esc(S.levelTitle(requiredLevel(S.ws().policy, 'reports.export')))}"`}>${icon(canExport ? 'download' : 'lock')}CSV</button>` });
     if (!people.length) return `${head}<section class="card">${emptyState({ icon: 'users', title: 'Nobody to report on yet', body: 'Reports cover the people in your branch. Invite or add people to get started.', actions: S.can('people.manage') ? `<a class="btn primary" href="#/team/invites">${icon('qr')}Join my team</a>` : '' })}</section>`;
     const audit = S.ws().audit.filter(e => people.some(p => p.id === e.subject) || e.actor === S.me().id).slice(0, 12);
-    const branchRows = lead.map(l => {
-      const members = directReports(S.org(), l.id).filter(p => people.includes(p));
-      const t = summarize(dailySeries(members, recordsFor, dates));
-      return { name: l.branch || l.name, rate: t.rate, n: members.length };
-    }).filter(r => r.n);
+    const groups = new Map<string,{name:string;present:number;absent:number;n:number}>();
+    for(const d of dates){const roster=rosterAt(S.ws(),d);for(const p of dateScope(d)){const leader=roster.find(x=>x.id===p.parentId);const key=leader?.id??'unassigned';const g=groups.get(key)??{name:leader?(leader.branch||leader.name):'Unassigned',present:0,absent:0,n:0};const st=statusOf(recordsFor(d)?.[p.id]);if(st==='present')g.present++;if(st==='absent')g.absent++;g.n++;groups.set(key,g);}}
+    const branchRows=[...groups.values()].map(g=>({...g,rate:attendanceRate(g)}));
     return `${head}
       <div class="kpis reveal">
         ${kpi({ label: 'Attendance rate', value: total.rate ?? '—', suffix: total.rate === null ? '' : '%', icon: 'target', key: 'rep-rate', foot: delta === null ? 'Present ÷ marked' : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} pts vs previous`, accent: true })}
@@ -106,7 +115,7 @@ export const reports: View = {
       </div>
       <section class="card"><div class="card-head"><h2>${icon('reports')}Daily attendance</h2><div class="legend"><span><i class="present"></i>Present</span><span><i class="absent"></i>Absent</span><span><i class="pending"></i>Unmarked</span></div></div>
         ${dates.length ? chart(series) : '<p class="muted small">No scheduled sessions since this workspace was created.</p>'}
-        <p class="hint">Unmarked records are never counted as absences. Sessions before ${esc(fmtDate(S.startDate()))} (workspace creation) are not shown.</p></section>
+        <p class="hint">Unmarked records are never counted as absences. Roster changes apply from the next local date. ${dates.some(d=>!snapshotAt(S.ws(),d))?'Older dates show identifiable marked records only; eligibility was not recorded.':''}</p></section>
       <div class="grid two section">
         <section class="card"><div class="card-head"><h2>${icon('hierarchy')}By branch</h2><span class="pill">Rate</span></div>
           ${branchRows.length ? `<div class="hbars">${branchRows.map(r => `<div class="hbar"><span class="name" title="${esc(r.name)}">${esc(r.name)}</span><span class="track"><span class="fill" data-width="${r.rate ?? 0}%"></span><span class="target" style="left:${cfg.targetPct}%" title="Target ${cfg.targetPct}%"></span></span><span class="val">${r.rate === null ? '—' : `${r.rate}%`}</span></div>`).join('')}</div><p class="hint" style="margin-top:10px">Marker shows the ${cfg.targetPct}% coverage target.</p>` : '<p class="muted small">Branch rates appear once leaders have people reporting to them.</p>'}
@@ -123,11 +132,12 @@ export const reports: View = {
         <div class="table-wrap"><table class="table"><thead><tr>${COLS.map(([k, l, num]) => `<th ${num ? 'class="num"' : ''} aria-sort="${ui.reportSort.key === k ? (ui.reportSort.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-action="rep-sort" data-key="${k}">${l}</button></th>`).join('')}</tr></thead><tbody id="rep-body">${register(people, dates)}</tbody></table></div></section>`;
   },
   mount(root) {
+    clearReportCache();
     const el = $('#trend-chart', root);
     if (!el) return;
-    const ui = S.session.ui, cfg = S.cfg();
-    const dates = sessionDates(S.session.today, ui.reportRange * 2, cfg.days, S.startDate()).slice(-ui.reportRange);
-    const series = dailySeries(scopePeople(), d => S.ws().attendance[d], dates);
+    const ui = S.session.ui;
+    const dates = datesFor(ui.reportRange);
+    const series = seriesFor(dates);
     const cols = $$('.col', el);
     const clear = () => { el.classList.remove('hovering'); cols.forEach(c => c.classList.remove('active')); hideTooltip(); };
     el.addEventListener('pointermove', e => {
@@ -154,13 +164,14 @@ export const reports: View = {
       bus.refresh();
     },
     'rep-export': () => {
+      clearReportCache();
       if (!S.can('reports.export')) return;
-      const cfg = S.cfg(), people = scopePeople();
-      const dates = sessionDates(S.session.today, S.session.ui.reportRange, cfg.days, S.startDate());
+      const cfg = S.cfg();
+      const dates = datesFor(S.session.ui.reportRange);
       const rows: unknown[][] = [['Name', 'Title', 'Branch', 'Date', 'Status', 'Marked at', 'Marked by', 'Method']];
-      for (const d of dates) for (const p of people) {
+      for (const d of dates) for (const p of dateScope(d)) {
         const r = S.ws().attendance[d]?.[p.id];
-        rows.push([p.name, S.levelTitle(p.level), S.branchName(p), d, statusOf(r) ?? 'unmarked', r ? new Date(r.at).toISOString() : '', r ? S.org().byId.get(r.by)?.name ?? '' : '', r?.via ?? '']);
+        rows.push([p.name, S.levelTitle(p.level), historicalBranch(S.ws(),p,d), d, statusOf(r) ?? 'unmarked', r ? new Date(r.at).toISOString() : '', r ? rosterAt(S.ws(),d).find(x=>x.id===r.by)?.name ?? S.org().byId.get(r.by)?.name ?? '' : '', r?.via ?? '']);
       }
       download(`qswipe-${cfg.name.replace(/\W+/g, '-').toLowerCase()}-${isoDate()}.csv`, toCSV(rows), 'text/csv;charset=utf-8');
       toast(`Exported ${plural(rows.length - 1, 'row')}`, { icon: 'download' });
@@ -169,9 +180,9 @@ export const reports: View = {
   inputs: {
     'rep-branch': el => { S.session.ui.reportBranch = (el as HTMLSelectElement).value; bus.refresh(); },
     'rep-q': el => {
+      clearReportCache();
       S.session.ui.reportQuery = (el as HTMLInputElement).value;
-      const cfg = S.cfg();
-      $('#rep-body')!.innerHTML = register(scopePeople(), sessionDates(S.session.today, S.session.ui.reportRange, cfg.days, S.startDate()));
+      $('#rep-body')!.innerHTML = register(scopePeople(datesFor(S.session.ui.reportRange)), datesFor(S.session.ui.reportRange));
     },
   },
 };

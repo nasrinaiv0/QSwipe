@@ -15,12 +15,14 @@ try{
  const [host,guest]=pages;
  async function profile(p,name,invite=''){
   await p.goto(origin+'/rooms/'+(invite?'#join='+invite:''));await p.getByText('Staging room service',{exact:true}).waitFor();
+  await p.locator('#profile-entry > summary').click();
   await p.locator('#profile-create input[name=name]').fill(name);await p.locator('#profile-create input[name=remember]').check();await p.getByRole('button',{name:'Create player profile'}).click();await p.locator('#profile-content .passport-head h2').filter({hasText:name}).waitFor();
  }
  await profile(host,'Alex');await host.getByRole('button',{name:'High five mascot'}).click();await host.getByText('✦ High five!',{exact:true}).waitFor();
  await host.screenshot({path:'creative-previews/01-interactive-mascot.png',fullPage:true,animations:'disabled'});
  await host.locator('#create button').click();await host.locator('#invite-panel').waitFor();const invite=await host.locator('#code').textContent();
  await profile(guest,'Jamie',invite);await guest.locator('#join button').click();await guest.locator('#room').waitFor();await host.waitForFunction(()=>document.querySelector('#count').textContent==='2 / 12');
+ await host.locator('.game-settings > summary').click();
  await host.getByRole('button',{name:'space race world'}).click();await host.locator('[aria-label="space race world"][aria-pressed=true]').waitFor();
  await host.screenshot({path:'creative-previews/02-game-settings.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:/Duck race/}).click();for(const p of pages)await p.locator('.race-track.theme-space').first().waitFor();
@@ -45,6 +47,7 @@ try{
   await host.getByRole('textbox',{name:'Your guess'}).fill('teapot');await host.getByRole('button',{name:'Guess',exact:true}).click();
   for(const p of pages)await p.getByText('Draw & guess! Alex guessed correctly',{exact:true}).waitFor();await host.getByRole('button',{name:'Back to lobby'}).click();
  }
+ if(!await host.locator('.game-settings').evaluate(el=>el.open))await host.locator('.game-settings > summary').click();
  await host.locator('.custom-editor summary').click();
  for(let i=0;i<5;i++){
   await host.getByRole('textbox',{name:'Custom question',exact:true}).fill('Team question '+(i+1)+'?');
@@ -58,7 +61,7 @@ try{
   if(i===0)await host.screenshot({path:'creative-previews/06-custom-trivia.png',fullPage:true,animations:'disabled'});
   if(i<4)await host.getByRole('button',{name:'Next question'}).click();
  }
- await host.getByText('Custom trivia complete · practice only',{exact:true}).waitFor();await host.getByRole('button',{name:'Close room',exact:true}).click();await host.reload();await host.locator('#profile-content .passport-head').waitFor();
+ await host.getByText('Custom trivia complete · practice only',{exact:true}).waitFor();await host.getByRole('button',{name:'Close room',exact:true}).click();await host.reload();await host.locator('#profile-entry > summary').click();await host.locator('#profile-content .passport-head').waitFor();
  await host.getByRole('button',{name:'Comet pin',exact:true}).click();await host.getByText('Comet pin ✓',{exact:true}).waitFor();await host.screenshot({path:'creative-previews/07-seasonal-reward.png',fullPage:true,animations:'disabled'});
  for(const p of pages)assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.deepEqual(errors,[]);console.log('Creative games browser passed: mascot reaction, race worlds, pointer/keyboard drawing, practice trivia and seasonal reward.');
