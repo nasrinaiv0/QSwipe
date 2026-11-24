@@ -10,11 +10,11 @@ export default async function handler(req, res) {
     const memberships = await activeMemberships(config, jwt, user.id);
     if (!memberships.some(m => m.workspace_id === workspaceId)) throw new SecurityError(403, 'WORKSPACE_NOT_AUTHORIZED');
     const rows = await readRows(config, jwt, 'qs_stg_roster_assignments', {
-      select: 'id,workspace_id,unit_id,display_name_snapshot,position_snapshot',
+      select: 'id,membership_id,workspace_id,unit_id,display_name_snapshot,position_snapshot',
       workspace_id: `eq.${workspaceId}`, limit: '100'
     });
     respond(res, 200, { workspaceId, rows: rows.filter(r => r && r.workspace_id === workspaceId).slice(0, 100).map(r => ({
-      id: validUuid(r.id), workspace_id: workspaceId, unit_id: validUuid(r.unit_id),
+      id: validUuid(r.id), isOwn: memberships.some(m => m.id === r.membership_id && m.workspace_id === workspaceId), workspace_id: workspaceId, unit_id: validUuid(r.unit_id),
       display_name_snapshot: typeof r.display_name_snapshot === 'string' ? r.display_name_snapshot.slice(0, 60) : '',
       position_snapshot: typeof r.position_snapshot === 'string' ? r.position_snapshot.slice(0, 80) : ''
     })) });
