@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "rooms:staging": "node lib/rooms/http.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && node --test \"test/*.test.js\"",
     "check": "npm run typecheck && npm run test && npm run build"
