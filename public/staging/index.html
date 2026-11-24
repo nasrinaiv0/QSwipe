@@ -30,8 +30,26 @@
    <label>Workspace<select id="workspace"></select></label><div id="grants" class="grants"></div>
    <button type="button" id="load-roster">Load authorized roster</button><p id="roster-status" role="status" aria-live="polite"></p>
    <div class="scroll"><table><thead><tr><th>Name</th><th>Position</th><th>Unit</th></tr></thead><tbody id="roster"></tbody></table></div>
+   <section id="p5-workspace" class="p5 hidden" aria-labelledby="p5-title">
+    <div class="p5-heading"><div><p class="eyebrow">Attendance operations</p><h2 id="p5-title">Attendance workspace</h2></div><span id="p5-network" class="p5-pill" role="status">Online</span></div>
+    <p>Choose an authorized person and session. All decisions are verified by the server.</p>
+    <div class="p5-picker"><label>Employee<select id="p5-person"><option value="">Choose employee</option></select></label><label>Session<select id="p5-session" disabled><option value="">Choose session</option></select></label><button id="p5-refresh" class="secondary" type="button">Refresh</button></div>
+    <p id="p5-status" class="p5-notice" role="status" aria-live="polite">Load the authorized roster to begin.</p>
+    <div id="p5-details" class="hidden">
+     <div class="p5-metrics"><div><span>Current attendance</span><strong id="p5-current">—</strong></div><div><span>Record version</span><strong id="p5-version">—</strong></div><div><span>Pending corrections</span><strong id="p5-pending">—</strong></div></div>
+     <div class="p5-grid">
+      <section class="p5-card" aria-labelledby="p5-submit-heading"><h3 id="p5-submit-heading">Request a correction</h3><p>The original record remains unchanged until independent approval.</p>
+       <form id="p5-submit"><label>Requested status<select id="p5-proposed" required><option value="present">Present</option><option value="absent">Absent</option></select></label><label>Reason<select id="p5-reason" required><option value="incorrect_mark">Incorrect mark</option><option value="verified_attendance">Verified attendance</option><option value="verified_absence">Verified absence</option></select></label><button type="submit" id="p5-submit-button">Queue correction</button></form>
+       <p class="p5-small">Drafts are not attendance records. Sync explicitly when connected.</p>
+      </section>
+      <section class="p5-card" aria-labelledby="p5-queue-heading"><h3 id="p5-queue-heading">Synchronization queue <span class="p5-count" id="p5-queue-count">0</span></h3><p>Only this authenticated tab. Closing or signing out clears unsent drafts.</p><div id="p5-queue"></div><button id="p5-sync" type="button" disabled>Sync queued corrections</button></section>
+     </div>
+     <section class="p5-card" aria-labelledby="p5-inbox-heading"><div class="p5-heading"><h3 id="p5-inbox-heading">Approval inbox</h3><span class="p5-pill">Selected session</span></div><p>Independent MFA-verified managers can review requests in their assigned unit. Decisions require a live connection.</p><div id="p5-inbox"></div></section>
+     <section class="p5-card" aria-labelledby="p5-history-heading"><h3 id="p5-history-heading">Versioned attendance history</h3><p>Recent request and decision history for this employee and session.</p><ol id="p5-history" class="p5-timeline"></ol></section>
+    </div>
+   </section>
   </section>
-  <footer>Private test project required. No shared data, manager mutations or attendance approvals are enabled here. <a href="/">Return to the original demo</a></footer>
+  <footer>Private test project required. Only explicitly enabled staging workflows are available. No production changes are enabled here. <a href="/">Return to the original demo</a></footer>
  </main>
 </body>
 </html>
