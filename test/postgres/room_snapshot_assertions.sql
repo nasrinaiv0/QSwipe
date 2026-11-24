@@ -13,9 +13,9 @@ do $$begin
  if public.qs_room_snapshot(repeat('a',64),'load',null,null)->>'version'<>'1' then raise exception 'Version mismatch';end if;
  begin perform public.qs_room_snapshot(repeat('b',64),'load',null,null);raise exception 'Invalid secret accepted';exception when raise_exception then if sqlerrm<>'ROOMS_DISABLED' then raise;end if;end;
  begin perform 1 from qs_rooms_private.snapshot;raise exception 'Direct access accepted';exception when insufficient_privilege then null;end;
-end$;
+end$$;
 reset role;
-do $begin
+do $$begin
  if has_table_privilege('anon','qs_rooms_private.snapshot','SELECT') or has_function_privilege('authenticated','public.qs_room_snapshot(text,text,bigint,jsonb)','EXECUTE') then raise exception 'Unexpected grants';end if;
 end$$;
 rollback;
