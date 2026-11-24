@@ -21,7 +21,7 @@ try{
  await host.screenshot({path:'seasonal-previews/01-zodiac-collection.png',fullPage:true,animations:'disabled'});
  await host.locator('#profile-entry > summary').click();await host.locator('#create button').click();await host.locator('#invite-panel').waitFor();const invite=await host.locator('#code').textContent();
  await profile(guest,'Jamie',invite);await guest.locator('#join button').click();await guest.locator('#room').waitFor();await host.waitForFunction(()=>document.querySelector('#count').textContent==='2 / 12');
- assert.equal(await host.locator('#profile-room').getAttribute('open'),null);assert.equal(await host.locator('.game-grid .game').count(),6);
+ assert.equal(await host.locator('#profile-room').getAttribute('open'),null);assert.equal(await host.locator('.game-grid .game').count(),8);
  await host.screenshot({path:'seasonal-previews/02-game-first-desktop.png',fullPage:true,animations:'disabled'});await guest.screenshot({path:'seasonal-previews/03-compact-mobile-dark.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:/Charades/}).click();await guest.locator('.charades-prompt').waitFor();assert.equal(await guest.locator('.charades-prompt').textContent(),'TEAPOT');await host.getByRole('textbox',{name:'Your guess'}).waitFor();assert.equal(await host.locator('.charades-prompt').count(),0);
  await host.screenshot({path:'seasonal-previews/04-charades-guesser.png',fullPage:true,animations:'disabled'});await guest.screenshot({path:'seasonal-previews/05-charades-actor-mobile.png',fullPage:true,animations:'disabled'});
