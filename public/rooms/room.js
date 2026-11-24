@@ -36,11 +36,13 @@ async function send(body,auth=credential){
   if(e!==epoch)return;
   if(!res.ok){if(data.error==='ROOM_ACCESS_DENIED'){reset('Room closed or expired. Join a new room.');return;}throw Error(data.error||'ROOM_UNAVAILABLE');}
   if(data.closed){reset('Room closed.');return;}
+  if(data.left){reset('You left the room. Your profile rewards are retained.');return;}
   if(!data.state||typeof data.state.serverNow!=='number')throw Error('ROOM_UNAVAILABLE');
   if(data.credential)credential=data.credential;
   clockOffset=data.state.serverNow-Math.round((started+Date.now())/2);
   state=data.state;resumeId=state.roomId;saveSession();connected('Live · connected');
   if(body.action!=='state')say('');
+  $('#room-notice').textContent=state.notice??'';$('#room-notice').hidden=!state.notice;
   render();
  }catch(err){if(e===epoch){connected('Connection interrupted');say(safeErrors[err.message]??'Connection interrupted. Reconnecting to the saved room; check the server state before retrying.');}}
  finally{if(e===epoch){busy=false;requestAction=null;syncControls();flushStroke();flushFlip();}}
@@ -116,8 +118,9 @@ function profilePanel(target,p,editable=false){
  if(editable){const forget=control('Forget profile on this device',()=>{if(!confirm('Remove the saved profile credential? Without it, you cannot recover this profile.'))return;profileSecret=null;profile=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet');target.append(forget);}
 }
 function drawEntryProfile(){
+ $('#passport-entry-label').textContent=profile?profile.name+' · '+profile.points+' pts':profileSecret?'Recover saved passport':'Optional';
  const content=$('#profile-content');if(!profile)content.replaceChildren();$('#profile-create').hidden=!!profileSecret;
- if(profile)profilePanel(content,profile,true);else if(profileSecret)content.append(el('p','Saved profile is unavailable. Retry or forget it.'),control('Retry profile',loadProfile,'quiet'),control('Forget profile',()=>{profileSecret=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet'));
+ if(profile){$('#passport-entry-label').textContent=profile.name+' · '+profile.points+' pts';profilePanel(content,profile,true);}else if(profileSecret)content.append(el('p','Saved profile is unavailable. Retry or forget it.'),control('Retry profile',loadProfile,'quiet'),control('Forget profile',()=>{profileSecret=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet'));
  for(const form of [$('#create'),$('#join')]){const input=form.elements.name;input.readOnly=!!profile;if(profile)input.value=profile.name;}
  syncControls();
 }
@@ -139,7 +142,7 @@ function drawQR(){
  n.append(svg('rect',{width:q.size,height:q.size,fill:'#fff'}),svg('path',{d:q.path,fill:'#0b1711'}));target.append(n);$('#code').textContent=state.invite;
 }
 function drawBoard(){
- $('#count').textContent=state.players.length+' / 12';
+ $('#count').textContent=state.players.filter(p=>!p.departed).length+' / 12';
  const teams=$('#teams');teams.replaceChildren();
  for(const t of [...state.teams].sort((a,b)=>(b.average??-1)-(a.average??-1))){
   const n=el('div',undefined,'team-row'),d=el('span',undefined,'dot '+t.team),info=el('div',undefined,'grow');
@@ -149,7 +152,7 @@ function drawBoard(){
  const list=$('#players');list.replaceChildren();
  [...state.players].sort((a,b)=>b.points-a.points||a.name.localeCompare(b.name)||a.id.localeCompare(b.id)).forEach((p,i)=>{
   const n=el('div',undefined,'player'+(p.badges.includes('Gold frame')?' gold':'')),info=el('div',undefined,'grow');
-  info.append(el('strong',p.name+(p.id===state.me?' · You':'')),el('div',(p.team==='jade'?'Jade':'Amber')+' · '+p.rounds+' rounds','muted'));
+  info.append(el('strong',p.name+(p.id===state.me?' · You':'')+(p.departed?' · Left':'')),el('div',(p.team==='jade'?'Jade':'Amber')+' · '+p.rounds+' rounds','muted'));
   if(p.badges.length)info.append(el('div','✦ '+p.badges.join(' · '),'badge-line'));
   n.append(el('span',String(i+1),'rank'),el('span',undefined,'dot '+p.team),info,el('span',String(p.points),'score'));list.append(n);
  });
@@ -255,17 +258,17 @@ let customKey='';
 function drawCreative(){
  const panel=$('#creative-panel');panel.hidden=!(state.host&&state.phase==='lobby');if(panel.hidden){customKey='';return;}
  const key=state.roomId+':'+state.customCount+':'+state.raceTheme;if(key===customKey)return;customKey=key;
- panel.replaceChildren();panel.append(el('h2','Game settings'));const worlds=el('div',undefined,'world-grid');
- for(const theme of ['pond','space','garden']){const b=control(theme,()=>cmd('race_theme',{version:state.version,theme}),'world-choice theme-'+theme);b.setAttribute('aria-label',theme+' race world');b.setAttribute('aria-pressed',String(state.raceTheme===theme));worlds.append(b);}panel.append(worlds);
+ const open=panel.querySelector('details.game-settings')?.open??false;panel.replaceChildren();const settings=el('details',undefined,'game-settings');settings.open=open;settings.append(el('summary','Game settings · '+state.raceTheme));panel.append(settings);const worlds=el('div',undefined,'world-grid');
+ for(const theme of ['pond','space','garden']){const b=control(theme,()=>cmd('race_theme',{version:state.version,theme}),'world-choice theme-'+theme);b.setAttribute('aria-label',theme+' race world');b.setAttribute('aria-pressed',String(state.raceTheme===theme));worlds.append(b);}settings.append(worlds);
  const details=el('details',undefined,'custom-editor');details.append(el('summary','Custom trivia · '+state.customCount+'/5'));details.open=state.customCount>0&&state.customCount<5;
  const form=el('form');const question=el('input');question.required=true;question.maxLength=100;question.placeholder='Question';question.setAttribute('aria-label','Custom question');form.append(question);const options=[];
  for(let i=0;i<4;i++){const input=el('input');input.maxLength=48;input.required=true;input.placeholder='Answer '+(i+1);input.setAttribute('aria-label','Answer '+(i+1));options.push(input);form.append(input);}
- const answer=el('select');answer.setAttribute('aria-label','Correct answer');for(let i=0;i<4;i++)answer.append(new Option('Correct: '+(i+1),String(i)));form.append(answer);const save=el('button','Save question');save.dataset.locked=String(state.customCount>=5);form.append(save);form.addEventListener('submit',e=>{e.preventDefault();cmd('custom_question',{version:state.version,text:question.value,options:options.map(x=>x.value),answer:Number(answer.value)});});details.append(el('p','Five questions · practice only · no scores'),form,control('Clear question set',()=>cmd('custom_clear',{version:state.version}),'quiet'));panel.append(details);
+ const answer=el('select');answer.setAttribute('aria-label','Correct answer');for(let i=0;i<4;i++)answer.append(new Option('Correct: '+(i+1),String(i)));form.append(answer);const save=el('button','Save question');save.dataset.locked=String(state.customCount>=5);form.append(save);form.addEventListener('submit',e=>{e.preventDefault();cmd('custom_question',{version:state.version,text:question.value,options:options.map(x=>x.value),answer:Number(answer.value)});});details.append(el('p','Five questions · practice only · no scores'),form,control('Clear question set',()=>cmd('custom_clear',{version:state.version}),'quiet'));settings.append(details);
 }
 
 function drawExtras(){
  drawCreative();
- const panel=$('#tournament-panel'),t=state.tournament;const draftTitle=panel.querySelector('input')?.value??'',draftTrophyName=panel.querySelector('[aria-label="Custom trophy name"]')?.value??'',draftTrophy=panel.querySelector('select')?.value??'Huddle cup';panel.hidden=!(t||state.host&&state.phase==='lobby');panel.replaceChildren();if(!panel.hidden){panel.append(el('h2',t?t.title:'Start a tournament'),el('p',t?t.completed+' / 3 rounds · '+(t.trophyName??t.trophy):'Three games. One friendly competition.'));if(t){for(const x of [...t.scores].sort((a,b)=>b.points-a.points)){const r=el('div',undefined,'team-row');r.append(el('span',name(x.id),'grow'),el('strong',String(x.points)));panel.append(r);}if(t.status==='finished')panel.append(el('div','🏆 '+t.winners.map(name).join(' & ')+' · '+(t.trophyName??t.trophy),'result'));}if(state.host&&state.phase==='lobby'&&t?.status!=='active'){const form=el('form'),title=el('input');title.maxLength=32;title.required=true;title.value=draftTitle;title.placeholder='Friday team cup';title.setAttribute('aria-label','Tournament title');const trophy=el('select');trophy.setAttribute('aria-label','Trophy style');for(const label of ['Huddle cup','Star trophy','Golden duck'])trophy.append(new Option(label,label));trophy.value=draftTrophy;const custom=el('input');custom.maxLength=32;custom.placeholder='Optional trophy name';custom.value=draftTrophyName;custom.setAttribute('aria-label','Custom trophy name');const b=el('button','Create tournament');form.append(title,trophy,custom,b);form.addEventListener('submit',e=>{e.preventDefault();cmd(custom.value.trim()?'tournament_custom':'tournament',{version:state.version,title:title.value,trophy:trophy.value,...(custom.value.trim()?{trophyName:custom.value.trim()}:{})});});panel.append(form);}}
+ const panel=$('#tournament-panel'),t=state.tournament;const setupOpen=panel.querySelector('.tournament-setup')?.open??false;const draftTitle=panel.querySelector('input')?.value??'',draftTrophyName=panel.querySelector('[aria-label="Custom trophy name"]')?.value??'',draftTrophy=panel.querySelector('select')?.value??'Huddle cup';panel.hidden=!(t||state.host&&state.phase==='lobby');panel.replaceChildren();if(!panel.hidden){panel.append(el('h2',t?t.title:'Start a tournament'),el('p',t?t.completed+' / 3 rounds · '+(t.trophyName??t.trophy):'Three games. One friendly competition.'));if(t){for(const x of [...t.scores].sort((a,b)=>b.points-a.points)){const r=el('div',undefined,'team-row');r.append(el('span',name(x.id),'grow'),el('strong',String(x.points)));panel.append(r);}if(t.status==='finished')panel.append(el('div','🏆 '+t.winners.map(name).join(' & ')+' · '+(t.trophyName??t.trophy),'result'));}if(state.host&&state.phase==='lobby'&&t?.status!=='active'){const form=el('form'),title=el('input');title.maxLength=32;title.required=true;title.value=draftTitle;title.placeholder='Friday team cup';title.setAttribute('aria-label','Tournament title');const trophy=el('select');trophy.setAttribute('aria-label','Trophy style');for(const label of ['Huddle cup','Star trophy','Golden duck'])trophy.append(new Option(label,label));trophy.value=draftTrophy;const custom=el('input');custom.maxLength=32;custom.placeholder='Optional trophy name';custom.value=draftTrophyName;custom.setAttribute('aria-label','Custom trophy name');const b=el('button','Create tournament');form.append(title,trophy,custom,b);form.addEventListener('submit',e=>{e.preventDefault();cmd(custom.value.trim()?'tournament_custom':'tournament',{version:state.version,title:title.value,trophy:trophy.value,...(custom.value.trim()?{trophyName:custom.value.trim()}:{})});});const setup=el('details',undefined,'tournament-setup');setup.open=setupOpen;setup.append(el('summary','Tournament setup'),form);panel.append(setup);}}
  const skinPanel=$('#skin-panel'),grid=$('#skins');skinPanel.hidden=state.phase!=='lobby';grid.replaceChildren();if(!skinPanel.hidden){for(const [key,palette] of Object.entries(skins)){const b=control(key,()=>cmd('skin',{skin:key}),'skin-choice');const dot=el('span','🦆');dot.style.background=palette[1];dot.setAttribute('aria-hidden','true');b.setAttribute('aria-label',key);b.prepend(dot);b.setAttribute('aria-pressed',String(state.players.find(p=>p.id===state.me)?.skin===key));grid.append(b);}}
 }
 function render(){
@@ -292,11 +295,11 @@ function render(){
 }
 
 for(const form of [$('#create'),$('#join')])form.addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(form));if(profileSecret&&!profile){say('Recover or forget your saved profile first.');return;}if(profile&&profileSecret){const {name:ignored,...rest}=data;send({action:form.id+'_profile',...rest},profileSecret);}else send({action:form.id,...data});});
-$('#exit').addEventListener('click',()=>{if(!state)return;if(state.host){if(confirm('Close this room for everyone?'))cmd('close');}else if(confirm('Leave this temporary room? Your completed profile rewards are retained; room access is removed.'))reset('You left the room.');});
+$('#exit').addEventListener('click',()=>{if(!state)return;if(state.host){if(confirm('Close this room for everyone?'))cmd('close');}else if(confirm('Leave this room? Your seat will be released now or after the active round. Completed profile rewards are retained.'))cmd('leave');});
 $('#copy').addEventListener('click',async()=>{if(!state?.invite)return;const link=location.origin+'/rooms/#join='+state.invite;try{await navigator.clipboard.writeText(link);say('Invitation copied.');}catch{say('Copy the invitation code shown above, or scan the QR.');}});
 const invite=/^#join=([a-f0-9]{32})$/.exec(location.hash)?.[1];
 if(invite){forgetSession();$('#join input[name=invite]').value=invite;history.replaceState(null,'',location.pathname);$('#join input[name=name]').focus();}
-async function health(){if(healthBusy)return;healthBusy=true;lastHealth=Date.now();try{const res=await fetch('/api/rooms/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});const d=await res.json();if(!res.ok||d.available!==true)throw Error();available=true;connected('Staging room service');say('');}catch{available=false;connected('Preview only');say('Shared rooms require the isolated room server. This static preview does not connect to a live backend.');}healthBusy=false;syncControls();if(available&&profileSecret)await loadProfile();if(available&&!invite){const saved=readSession();if(saved){credential=saved.credential;resumeId=saved.roomId;await send({action:'state',roomId:resumeId});}}}
+async function health(){if(healthBusy)return;healthBusy=true;lastHealth=Date.now();try{const res=await fetch('/api/rooms/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});const d=await res.json();if(!res.ok||d.available!==true)throw Error();available=true;connected('Staging room service');say('');}catch{available=false;connected('Preview only');say('Shared rooms require the isolated room server. This static preview does not connect to a live backend.');}healthBusy=false;syncControls();if(available&&profileSecret)await loadProfile();if(available){const saved=readSession();if(saved){credential=saved.credential;resumeId=saved.roomId;await send({action:'state',roomId:resumeId});}}}
 interval=setInterval(()=>{if(!busy&&!drawActive&&!pendingStroke&&!pendingFlip&&!document.hidden){if(state)cmd('state');else if(resumeId&&available)send({action:'state',roomId:resumeId});else if(!available&&Date.now()-lastHealth>5000)health();}},1000);
 document.addEventListener('visibilitychange',()=>{document.documentElement.classList.toggle('motion-paused',document.hidden);if(document.hidden)stopVisual();else if(state){if(!drawActive)cmd('state');animate();}});
 motion.addEventListener('change',()=>animate());
