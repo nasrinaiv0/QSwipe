@@ -6,7 +6,7 @@ const pretty=t=>String(t).replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
 const status=(t)=>{const n=node('span',pretty(t),'p5-pill');n.dataset.state=t;return n;};
 const button=(text,action,secondary=false)=>{const b=node('button',text,secondary?'secondary':'');b.type='button';b.addEventListener('click',action);return b;};
 const empty=t=>node('div',t,'p5-empty');
-export function createWorkspace({getToken,getProject}){
+export function createWorkspace({getToken,getProject,onAuthExpired}){
  const queue=new CorrectionQueue();
  let owner=null,grants=[],people=[],sessions=[],current=null,epoch=0,busy=false,enabled=false;
  const ambiguous=new Map();
@@ -21,6 +21,7 @@ export function createWorkspace({getToken,getProject}){
   if(!token)throw Object.assign(Error('AUTH_REQUIRED'),{status:401});
   const r=await fetch('/api/staging/'+path,{method:body?'POST':'GET',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(12000),headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
   let data;try{data=await r.json();}catch{throw Object.assign(Error('INVALID_RESPONSE'),{status:r.ok?502:r.status});}
+  if(r.status===401&&token===getToken())onAuthExpired?.();
   if(!r.ok)throw Object.assign(Error(typeof data?.error==='string'?data.error:'REQUEST_REJECTED'),{status:r.status});
   return data;
  }
