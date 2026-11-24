@@ -99,10 +99,11 @@ jobs:
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 node test/browser/p5-browser.mjs
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 node test/browser/p5-browser.mjs
           QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 QSWIPE_WORKFORCE_BROWSER=1 node test/browser/p5-browser.mjs
+          QSWIPE_P6_BROWSER=1 QSWIPE_ADAPTER_BROWSER=1 QSWIPE_ONBOARDING_BROWSER=1 QSWIPE_WORKFORCE_BROWSER=1 QSWIPE_ADVANCED_BROWSER=1 node test/browser/p5-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qswipe-workforce-rendered-previews
-          path: workforce-previews/*.png
+          name: qswipe-advanced-rendered-previews
+          path: advanced-previews/*.png
           if-no-files-found: warn
           retention-days: 7
