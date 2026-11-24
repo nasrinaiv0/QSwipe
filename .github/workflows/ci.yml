@@ -42,6 +42,8 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$PG_CONTAINER"
-          for file in test/postgres/bootstrap.sql supabase/migrations/20261123000000_qswipe_staging_identity_rbac.sql test/postgres/authorization.sql; do
+          for file in test/postgres/bootstrap.sql supabase/migrations/20261123000000_qswipe_staging_identity_rbac.sql test/postgres/authorization.sql test/postgres/p3_bootstrap.sql supabase/staging/p3_attendance.sql test/postgres/p3_fixture.sql test/postgres/p3_assertions.sql; do
             docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
           done
+
+          bash test/postgres/p3_concurrency.sh
