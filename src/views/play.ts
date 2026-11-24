@@ -276,10 +276,11 @@ export const play: View = {
     const id = game(), key=scopeKey();
     if(key!==contextKey || id!==lastGame){resetResult();g.trivia=null;clearChallenge();if(key!==contextKey)g.history=[];contextKey=key;lastGame=id;}
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
-    if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.'})}${tabs}${challengeView()}`;
+    const liveLink = `<a class="btn primary" href="./rooms/">${icon('users')}Live rooms</a>`;
+    if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.',actions:liveLink})}${tabs}${challengeView()}`;
     const t = g.trivia;
     const stage = id === 'wheel' ? wheel() : id === 'race' ? race() : id === 'cards' ? cards() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
-    return `${pageHead({ title: 'Play', lede: 'Fair, crypto-random picks and quick games for huddles, classes and meetings.' })}${tabs}
+    return `${pageHead({ title: 'Play', lede: 'Fair, crypto-random picks and quick games for huddles, classes and meetings.', actions: liveLink })}${tabs}
       ${id === 'trivia' ? `<section class="card"><div class="stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
   },
   mount() { if (game() === 'trivia' && g.trivia && !g.trivia.done) runTimer(); },
