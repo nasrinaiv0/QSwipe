@@ -27,8 +27,8 @@ try{
  await host.screenshot({path:'creative-previews/03-space-race.png',fullPage:true,animations:'disabled'});
  await host.getByRole('button',{name:'Back to lobby'}).click();
  for(let i=0;i<2;i++){
-  await host.getByRole('button',{name:/Draw & guess/}).click();await guest.locator('.charades-prompt').waitFor();assert.equal(await host.locator('.charades-prompt').count(),0);
-  const surface=guest.locator('.drawing-surface');await surface.scrollIntoViewIfNeeded();const box=await surface.boundingBox();
+  await host.getByRole('button',{name:/Draw & guess/}).click();await guest.locator('.drawing-surface[role="application"][data-strokes="0"]').waitFor();await host.locator('.drawing-surface[data-strokes="0"]').waitFor();assert.equal(await host.locator('.charades-prompt').count(),0);
+  const surface=guest.locator('.drawing-surface[role="application"]');await surface.scrollIntoViewIfNeeded();const box=await surface.boundingBox();
   await guest.mouse.move(box.x+box.width*.2,box.y+box.height*.6);await guest.mouse.down();await guest.mouse.move(box.x+box.width*.5,box.y+box.height*.2,{steps:8});await guest.mouse.move(box.x+box.width*.8,box.y+box.height*.6,{steps:8});await guest.mouse.up();
   await host.locator('.drawing-surface[data-strokes="1"]').waitFor();
   await guest.locator('.drawing-surface[data-strokes="1"]').focus();await guest.keyboard.press('Enter');await host.locator('.drawing-surface[data-strokes="2"]').waitFor();
