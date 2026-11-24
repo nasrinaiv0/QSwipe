@@ -76,7 +76,7 @@ async function refreshWorkspace(token, version) {
   $('#grants').replaceChildren();
   for(const g of who.grants){const b=document.createElement('span');b.textContent=g.role.replaceAll('_',' ')+' · '+g.unitId.slice(0,8);$('#grants').append(b);}
   clearRoster();
-  p5.bind(who,config.workspaceEnabled,config.securityEnabled);
+  p5.bind(who,config.workspaceEnabled,config.securityEnabled,config.adapterEnabled);
   say('#roster-status',workspaceIds.size?'Select a workspace to view authorized roster entries.':'No active workspace membership. Contact the staging administrator.');
   return true;
 }
