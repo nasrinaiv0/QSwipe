@@ -1,4 +1,5 @@
 import { stagingConfiguration, getBearer, verifiedUser, respond, fail, SecurityError } from '../../lib/staging/security.js';
+import { encode } from 'uqr';
 import { attendanceCommand, executeAttendance } from '../../lib/staging/attendance.js';
 export default async function handler(req,res){
   try{
@@ -9,6 +10,12 @@ export default async function handler(req,res){
     const jwt=getBearer(req);
     const command=attendanceCommand(req.body);
     await verifiedUser(config,jwt);
-    respond(res,200,await executeAttendance(config,jwt,command));
+    const data=await executeAttendance(config,jwt,command);
+    if(command.p_action==='issue' && process.env.QSWIPE_STAGING_ADAPTER_ENABLED==='true'){
+      const qr=encode(data.token,{ecc:'M',border:0});
+      if(qr.size<21||qr.size>81||qr.data.length!==qr.size)throw new SecurityError(502,'INVALID_QR_MATRIX');
+      data.qr=qr.data.map(row=>Array.from(row,x=>x?'1':'0').join(''));
+    }
+    respond(res,200,data);
   }catch(error){fail(res,error);}
 }
