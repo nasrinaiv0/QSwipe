@@ -25,7 +25,7 @@ const now=()=>Date.now()+clockOffset;
 const name=id=>state?.players.find(x=>x.id===id)?.name??'Player';
 const safeErrors={PROFILE_DENIED:'Player profile is unavailable. Forget it and create a new one.',MASCOT_LOCKED:'Complete the milestone to unlock this mascot.',BINGO_UNAVAILABLE:'Only mark a called number on your own board.',PROFILE_LIMIT:'Player profile capacity reached.',TOURNAMENT_UNAVAILABLE:'The room changed or a tournament is already active. Wait for synchronization and try again.',CARD_UNAVAILABLE:'That card is no longer available. Wait for the board to refresh.',SKIN_UNAVAILABLE:'Choose a skin while in the lobby.',ROOM_STORE_UNAVAILABLE:'Room storage is temporarily unavailable. Reconnecting…',INVALID_PLAYER:'Use a display name of 1–24 characters.',INVITE_EXPIRED:'Invitation expired or not found.',ROOM_NOT_JOINABLE:'Room is full or a game is in progress.',NAME_TAKEN:'Choose a different display name.',HOST_ONLY:'Only the host can do that.',CANNOT_START:'The room changed. Wait for the latest state.',QUESTION_CLOSED:'This question has closed.',ALREADY_ANSWERED:'Your answer is already recorded.',ROOM_LIMIT:'The staging room limit has been reached.',SLOW_DOWN:'Too many requests. Try again shortly.'};
 function syncControls(){
- for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available;for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||!available||!!resumeId;for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
+ for(const b of document.querySelectorAll('#profile-create button,#profile-content button'))b.disabled=busy||profileBusy||!available||b.dataset.locked==='true';for(const b of document.querySelectorAll('#entry button'))b.disabled=busy||!available||!!resumeId;for(const b of document.querySelectorAll('#room button')){if(b.id==='exit')b.disabled=busy;else b.disabled=busy||b.dataset.locked==='true';}}
 function reset(text){epoch++;forgetSession();resumeId=null;state=null;credential=null;busy=false;renderedKey='';cancelAnimationFrame(raf);visual=null;$('#room').hidden=true;$('#entry').hidden=false;$('#qr').replaceChildren();$('#code').textContent='';stage.replaceChildren();$('#players').replaceChildren();$('#teams').replaceChildren();say(text);syncControls();if(profileSecret&&available)loadProfile();}
 async function send(body,auth=credential){
  if(busy||!available)return;
@@ -46,6 +46,43 @@ async function send(body,auth=credential){
  finally{if(e===epoch){busy=false;syncControls();}}
 }
 const cmd=(action,rest={})=>state&&send({action,roomId:state.roomId,...rest});
+
+function mascot(id){
+ const palette={duck:['#f4c654','#ffdf83'],fox:['#e78a53','#ffceaa'],bunny:['#b6a2d9','#e5d9f6'],bear:['#b78a64','#e8c6a1'],star:['#edb84a','#ffe8a4']}[id]??['#f4c654','#ffdf83'];
+ const n=svg('svg',{viewBox:'0 0 100 100',class:'collectible-svg','aria-hidden':'true'});n.append(svg('ellipse',{cx:50,cy:88,rx:26,ry:5,fill:'currentColor',opacity:.12}));
+ const g=svg('g',{class:'mascot-bob'});n.append(g);
+ if(id==='star'){g.append(svg('path',{d:'M50 8L63 34L92 38L71 59L76 88L50 74L24 88L29 59L8 38L37 34Z',fill:palette[0],stroke:'#bd8d30','stroke-width':2,'stroke-linejoin':'round'}));}
+ else{g.append(svg('ellipse',{cx:50,cy:70,rx:25,ry:18,fill:palette[0]}),svg('ellipse',{cx:36,cy:85,rx:10,ry:5,fill:palette[0]}),svg('ellipse',{cx:64,cy:85,rx:10,ry:5,fill:palette[0]}));
+ if(id==='fox'){g.append(svg('path',{d:'M22 44L20 13L45 30M78 44L80 13L55 30',fill:palette[0],stroke:palette[0],'stroke-width':4,'stroke-linejoin':'round'}));}
+ if(id==='bunny')for(const x of [36,64])g.append(svg('ellipse',{cx:x,cy:24,rx:10,ry:21,fill:palette[0]}),svg('ellipse',{cx:x,cy:24,rx:4,ry:13,fill:'#e9a3b5'}));
+ if(id==='bear')for(const x of [27,73])g.append(svg('circle',{cx:x,cy:28,r:13,fill:palette[0]}),svg('circle',{cx:x,cy:28,r:7,fill:palette[1]}));
+ g.append(svg('ellipse',{cx:50,cy:49,rx:31,ry:27,fill:palette[1]}));}
+ for(const x of [39,61])g.append(svg('circle',{cx:x,cy:48,r:3.2,fill:'#202b25',class:'mascot-eye'}),svg('ellipse',{cx:x+(x<50?-8:8),cy:57,rx:5,ry:3,fill:'#eaa1a3',opacity:.8}));
+ if(id==='duck')g.append(svg('ellipse',{cx:50,cy:58,rx:11,ry:5,fill:'#e59134'}));else g.append(svg('path',{d:'M44 59Q50 65 56 59',stroke:'#674e45','stroke-width':2,fill:'none','stroke-linecap':'round'}));
+ return n;
+}
+function profilePanel(target,p,editable=false){
+ target.replaceChildren();const head=el('div',undefined,'passport-head'),info=el('div');info.append(el('span','PLAYER PASSPORT','eyebrow'),el('h2',p.name),el('p',p.points+' lifetime points · '+p.rounds+' games','muted'));head.append(mascot(p.mascot),info);target.append(head);
+ const daily=el('div',undefined,'daily-card');daily.append(el('strong',p.daily.completed?'Daily challenge complete ✓':'Daily challenge · +25 points'),el('p',p.daily.completed?'Come back tomorrow (UTC).':'Complete a skill game with at least one valid answer, pair or bingo mark.'));target.append(daily);
+ target.append(el('h3','Mascot collection'));const grid=el('div',undefined,'collectible-grid');for(const m of p.collection){const tile=el('div',undefined,'collectible'+(m.unlocked?' unlocked':''));tile.append(mascot(m.id),el('strong',m.label),el('small',m.requirement),el('small',m.unlocked?'Unlocked':'Locked'));if(editable){const b=control(p.mascot===m.id?'Selected':'Equip',()=>profileRequest({action:'profile_mascot',mascot:m.id}));b.disabled=!m.unlocked||p.mascot===m.id;b.dataset.locked=String(b.disabled);tile.append(b);}grid.append(tile);}target.append(grid);
+ target.append(el('h3','Tournament history'));if(!p.history.length)target.append(el('p','Your completed tournaments will appear here.','muted'));for(const h of p.history){const row=el('div',undefined,'history-row');const text=el('div',undefined,'grow');text.append(el('strong',h.title),el('small',h.trophyName+' · '+h.completedAt.slice(0,10)));row.append(el('span',h.won?'🏆':'✦','history-icon'),text,el('strong',h.points+' pts'));target.append(row);}
+ if(editable){const forget=control('Forget profile on this device',()=>{if(!confirm('Remove the saved profile credential? Without it, you cannot recover this profile.'))return;profileSecret=null;profile=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet');target.append(forget);}
+}
+function drawEntryProfile(){
+ const content=$('#profile-content');content.replaceChildren();$('#profile-create').hidden=!!profileSecret;
+ if(profile)profilePanel(content,profile,true);else if(profileSecret)content.append(el('p','Saved profile is unavailable. Retry or forget it.'),control('Retry profile',loadProfile,'quiet'),control('Forget profile',()=>{profileSecret=null;try{localStorage.removeItem(profileKey);}catch{}drawEntryProfile();},'quiet'));
+ for(const form of [$('#create'),$('#join')]){const input=form.elements.name;input.readOnly=!!profile;if(profile)input.value=profile.name;}
+ syncControls();
+}
+function drawRoomProfile(){const panel=$('#profile-room');panel.hidden=!state?.profile;if(state?.profile){profile=state.profile;profilePanel(panel,state.profile);}}
+async function profileRequest(body){
+ if(profileBusy||!available)return;profileBusy=true;syncControls();
+ try{const res=await fetch('/api/rooms/command',{method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(6000),headers:{'Content-Type':'application/json',...(profileSecret?{Authorization:'Bearer '+profileSecret}:{})},body:JSON.stringify(body)});const d=await res.json();if(!res.ok||!d.profile)throw Error(d.error||'ROOM_UNAVAILABLE');if(d.profileCredential){profileSecret=d.profileCredential;try{localStorage.setItem(profileKey,profileSecret);}catch{say('Browser storage unavailable; this profile cannot be recovered after closing the page.');}}profile=d.profile;drawEntryProfile();}
+ catch(e){say(safeErrors[e.message]??'Profile service unavailable.');drawEntryProfile();}finally{profileBusy=false;syncControls();}
+}
+const loadProfile=()=>profileRequest({action:'profile_state'});
+$('#profile-create').addEventListener('submit',e=>{e.preventDefault();const form=e.currentTarget;if(!form.elements.remember.checked)return;profileRequest({action:'profile_create',name:form.elements.name.value});});
+
 function drawQR(){
  const target=$('#qr');target.replaceChildren();
  if(!state.qr)return;
@@ -150,7 +187,7 @@ function render(){
 
 }
 
-for(const form of [$('#create'),$('#join')])form.addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(form));if(profile&&profileSecret){const {name:ignored,...rest}=data;send({action:form.id+'_profile',...rest},profileSecret);}else send({action:form.id,...data});});
+for(const form of [$('#create'),$('#join')])form.addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(form));if(profileSecret&&!profile){say('Recover or forget your saved profile first.');return;}if(profile&&profileSecret){const {name:ignored,...rest}=data;send({action:form.id+'_profile',...rest},profileSecret);}else send({action:form.id,...data});});
 $('#exit').addEventListener('click',()=>{if(!state)return;if(state.host){if(confirm('Close this room for everyone?'))cmd('close');}else if(confirm('Leave this temporary room? Your completed profile rewards are retained; room access is removed.'))reset('You left the room.');});
 $('#copy').addEventListener('click',async()=>{if(!state?.invite)return;const link=location.origin+'/rooms/#join='+state.invite;try{await navigator.clipboard.writeText(link);say('Invitation copied.');}catch{say('Copy the invitation code shown above, or scan the QR.');}});
 const invite=/^#join=([a-f0-9]{32})$/.exec(location.hash)?.[1];
@@ -160,4 +197,4 @@ interval=setInterval(()=>{if(!busy&&!document.hidden){if(state)cmd('state');else
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelAnimationFrame(raf);else if(state){cmd('state');animate();}});
 window.addEventListener('pagehide',()=>{clearInterval(interval);epoch++;cancelAnimationFrame(raf);credential=null;state=null;});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
-health();
+drawEntryProfile();health();
