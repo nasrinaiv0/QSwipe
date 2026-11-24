@@ -57,6 +57,10 @@ jobs:
             docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
           done
 
+          for file in supabase/staging/p6_inbox.sql test/postgres/p6_assertions.sql; do
+            docker exec -i "$PG_CONTAINER" psql -X -v ON_ERROR_STOP=1 -U postgres -d qswipe_test < "$file"
+          done
+
   staging-browser:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -75,10 +79,11 @@ jobs:
           export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
           export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/p5-browser.mjs
+          QSWIPE_P6_BROWSER=1 node test/browser/p5-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: qswipe-p5-rendered-previews
-          path: p5-previews/*.png
+          name: qswipe-p6-rendered-previews
+          path: p6-previews/*.png
           if-no-files-found: warn
           retention-days: 7

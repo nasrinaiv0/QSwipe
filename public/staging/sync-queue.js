@@ -9,7 +9,7 @@ export function correctionDraft({sessionId,rosterId,requestId,expectedVersion,st
 export class CorrectionQueue{
  #owner=null;#items=[];#generation=0;#busy=false;
  get busy(){return this.#busy;}
- get items(){return this.#items.map(i=>({draft:i.draft,state:i.state}));}
+ get items(){return this.#items.map(i=>({draft:i.draft,state:i.state,createdAt:i.createdAt}));}
  bind(owner){
   if(typeof owner!=='string'||!owner)throw Error('IDENTITY_REQUIRED');
   if(owner!==this.#owner){this.clear();this.#owner=owner;}
@@ -21,8 +21,14 @@ export class CorrectionQueue{
   const draft=correctionDraft(input);
   if(this.#items.length>=20)throw Error('QUEUE_FULL');
   if(this.#items.some(i=>i.draft.requestId===draft.requestId||i.draft.sessionId===draft.sessionId&&i.draft.rosterId===draft.rosterId))throw Error('DRAFT_ALREADY_QUEUED');
-  this.#items.push({draft,state:'queued'});
+  this.#items.push({draft,state:'queued',createdAt:Date.now()});
   return draft;
+ }
+ restore(items){
+  if(!this.#owner||this.#busy||this.#items.length)throw Error('QUEUE_NOT_EMPTY');
+  if(!Array.isArray(items)||items.length>20)throw Error('INVALID_DRAFT');
+  const seen=new Set(),pairs=new Set();
+  this.#items=items.map(i=>{const draft=correctionDraft(i.draft),pair=draft.sessionId+':'+draft.rosterId;if(seen.has(draft.requestId)||pairs.has(pair)||!['queued','retry','blocked'].includes(i.state)||!Number.isSafeInteger(i.createdAt))throw Error('INVALID_DRAFT');seen.add(draft.requestId);pairs.add(pair);return {draft,state:i.state,createdAt:i.createdAt};});
  }
  discard(requestId){
   if(this.#busy)throw Error('SYNC_IN_PROGRESS');
