@@ -463,7 +463,7 @@ export function recordPlayScores(scores: PlayScore[]): number {
   const allowed=new Set([me(),...visiblePeople()].map(p=>p.id));
   let ledger=ws().playScores??[],count=0;
   for(const score of scores){if(!allowed.has(score.playerId))continue;const next=addScore(ledger,score,ws().people,M.isoDate());if(next){ledger=next;count++;}}
-  if(count){ws().playScores=ledger;flush();}return count;
+  if(count){ws().playScores=ledger;persist();flush();}return count;
 }
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }

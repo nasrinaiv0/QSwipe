@@ -29,6 +29,8 @@ try{
   }
   await page.getByText('Team round complete!').waitFor();assert.equal(await page.locator('.engage-rank').count(),2);
   assert.equal(await page.locator('.achievement.unlocked').count(),2);await page.screenshot({path:'team-play-previews/'+name+'-results.png',fullPage:true});
+  // The score write must be durable immediately, even when no prior storage mutation is pending.
+  assert.equal(await page.evaluate(()=>{const d=JSON.parse(localStorage.getItem('qswipe-v3'));return d.workspaces[d.activeId].playScores.length;}),2);
   await page.reload();await page.locator('.challenge-players').waitFor();assert.equal(await page.locator('.engage-rank').count(),2);assert.equal(await page.locator('.achievement.unlocked').count(),2);
   assert.equal(await page.evaluate(()=>{const d=JSON.parse(localStorage.getItem('qswipe-v3'));return d.workspaces[d.activeId].playScores.length;}),2);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
