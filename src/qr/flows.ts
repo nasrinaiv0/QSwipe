@@ -51,7 +51,7 @@ export function showInvite(invite: Invite) {
             <div class="step"><span>They enter their name. Their screen shows a <b>join confirmation</b> code.</span></div>
             <div class="step"><span>You tap <b>Scan confirmation</b> and scan it to add them to your roster.</span></div>
           </div>
-          <div class="notice">${icon('info')}<span>No server is involved: the codes carry the details between devices. Keep invites private and revoke them when you're done.</span></div>
+          <div class="notice">${icon('info')}<span>Keep invites private; revoke when done.</span></div>
           ${codeSnippet(link)}
         </div></div>`,
       foot: `<button class="btn ghost" type="button" data-action="dialog-close">Done</button><button class="btn primary" type="button" id="invite-scan">${icon('scan')}Scan confirmation</button>`,
@@ -102,7 +102,7 @@ export function showReceipt(receipt: ReceiptCode, inviterName: string) {
     label: 'Join confirmation',
     html: dialogShell({
       title: 'Show this to finish joining',
-      sub: `Ask ${firstName(inviterName)} to scan this code with QSwipe → Scan.`,
+      sub: `Show this to ${firstName(inviterName)}`,
       body: `<div class="stack"><div class="qr-box">${qrFrame(link)}<div class="qr-meta"><strong>${esc(receipt.m.n)}</strong><small>Join confirmation · ${esc(S.cfg().name)}</small></div><div class="cluster" style="justify-content:center">${shareButtons(link)}</div></div>
         <div class="steps"><div class="step done"><span>You joined on this device.</span></div><div class="step active"><span>${esc(firstName(inviterName))} scans this code (or opens the shared link) to add you to the roster.</span></div><div class="step"><span>Afterwards, check in daily with your pass from the Today page.</span></div></div>${codeSnippet(link)}</div>`,
       foot: `<button class="btn primary" type="button" data-action="dialog-close">Done</button>`,
@@ -167,7 +167,7 @@ export async function handleCode(text: string, { continuous = false } = {}): Pro
 
 /** "Join the team": for people joining someone else's team. */
 export function openJoinScanner() {
-  openScanner({ title: 'Join the team', sub: "Scan the invite QR code on your leader's screen.", hint: 'Tip: you can also scan an invite with your phone camera; it opens QSwipe directly.', onCode: text => handleCode(text) });
+  openScanner({ title: 'Join the team', sub: "Scan your leader's invite", onCode: text => handleCode(text) });
 }
 
 /** For leads: scan join confirmations and check-in passes back-to-back. */
@@ -175,8 +175,7 @@ export function openTeamScanner() {
   const pending = S.ws().invites.filter(i => inviteState(i) === 'active').length;
   openScanner({
     title: 'Scan QR',
-    sub: `Join confirmations and check-in passes · ${plural(pending, 'active invite')}`,
-    hint: 'The scanner stays open so you can check in a queue of people one after another.',
+    sub: `Confirmations & passes · ${plural(pending, 'active invite')}`,
     onCode: text => handleCode(text, { continuous: true }),
   });
 }

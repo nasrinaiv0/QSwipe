@@ -8,14 +8,14 @@ import { $, confirmDialog, download, esc, icon, lockedPanel, plural, toast, with
 import { field, options, pageHead, type View } from './common';
 
 const SECTIONS: [string, string, string, string?][] = [
-  ['appearance', 'Appearance', 'palette'], ['attendance', 'Attendance & feedback', 'hand'], ['workspace', 'Workspace', 'building', 'settings.workspace'],
-  ['access', 'Access & hierarchy', 'shield'], ['data', 'Data & privacy', 'database'], ['about', 'Shortcuts & about', 'keyboard'],
+  ['appearance', 'Appearance', 'palette'], ['attendance', 'Attendance', 'hand'], ['workspace', 'Workspace', 'building', 'settings.workspace'],
+  ['access', 'Access', 'shield'], ['data', 'Data', 'database'], ['about', 'About', 'keyboard'],
 ];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const ACCENTS: Record<Settings['accent'], string> = { green: '#17714f', teal: '#0e7470', blue: '#2860c4', violet: '#6448cf', rose: '#bf3a63', amber: '#a35f07' };
+const ACCENTS: Record<Settings['accent'], string> = { green: '#1a7f37', teal: '#007a87', blue: '#0a6cdc', violet: '#5856d6', rose: '#d1264f', amber: '#b45400' };
 
 const setting = (label: string, sub: string, control: string, stacked = false) =>
-  `<div class="setting ${stacked ? 'stacked' : ''}"><div class="s-label"><strong>${esc(label)}</strong><small>${esc(sub)}</small></div><div>${control}</div></div>`;
+  `<div class="setting ${stacked ? 'stacked' : ''}"><div class="s-label"><strong>${esc(label)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div><div>${control}</div></div>`;
 
 function seg<K extends keyof Settings>(key: K, items: [Settings[K], string][]) {
   return `<div class="seg" role="group">${items.map(([v, l]) => `<button type="button" data-action="set" data-key="${key}" data-value="${String(v)}" aria-pressed="${S.settings()[key] === v}">${esc(l)}</button>`).join('')}</div>`;
@@ -25,20 +25,21 @@ const toggle = (key: keyof Settings, label: string) => `<label class="switch"><i
 function appearance() {
   const s = S.settings();
   return `<section class="card"><div class="card-head"><h2>${icon('palette')}Appearance</h2><span class="pill">This device</span></div>
-    ${setting('Theme', 'System follows your device setting.', `<div class="theme-cards">${(['system', 'light', 'dark'] as const).map(t => `<button class="theme-card" type="button" data-action="set" data-key="theme" data-value="${t}" aria-pressed="${s.theme === t}"><span class="preview ${t}"><i></i><i></i></span><span>${icon(t === 'system' ? 'monitor' : t === 'light' ? 'sun' : 'moon')}${t[0]!.toUpperCase() + t.slice(1)}</span></button>`).join('')}</div>`, true)}
-    ${setting('Accent colour', 'Used for primary actions and highlights.', `<div class="swatches">${(Object.keys(ACCENTS) as Settings['accent'][]).map(a => `<button class="swatch" type="button" style="background:${ACCENTS[a]}" data-action="set" data-key="accent" data-value="${a}" aria-pressed="${s.accent === a}" aria-label="${a}">${icon('check')}</button>`).join('')}</div>`)}
-    ${setting('Density', 'Compact fits more on screen.', seg('density', [['compact', 'Compact'], ['comfortable', 'Comfortable']]))}
-    ${setting('Text size', 'Scales all text.', seg('textSize', [['default', 'Default'], ['large', 'Large']]))}
-    ${setting('Motion', 'Reduced turns off animations and confetti.', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;
+    ${setting('Theme', '', `<div class="theme-cards">${(['system', 'light', 'dark'] as const).map(t => `<button class="theme-card" type="button" data-action="set" data-key="theme" data-value="${t}" aria-pressed="${s.theme === t}"><span class="preview ${t}"><i></i><i></i></span><span>${icon(t === 'system' ? 'monitor' : t === 'light' ? 'sun' : 'moon')}${t[0]!.toUpperCase() + t.slice(1)}</span></button>`).join('')}</div>`, true)}
+    ${setting('Accent', '', `<div class="swatches">${(Object.keys(ACCENTS) as Settings['accent'][]).map(a => `<button class="swatch" type="button" style="background:${ACCENTS[a]}" data-action="set" data-key="accent" data-value="${a}" aria-pressed="${s.accent === a}" aria-label="${a}">${icon('check')}</button>`).join('')}</div>`)}
+    ${setting('Glass', 'Clear shows more behind bars and sheets.', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
+    ${setting('Density', '', seg('density', [['compact', 'Compact'], ['comfortable', 'Comfortable']]))}
+    ${setting('Text size', '', seg('textSize', [['default', 'Default'], ['large', 'Large']]))}
+    ${setting('Motion', 'Reduced turns off animations.', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;
 }
 
 function attendanceSec() {
   return `<section class="card"><div class="card-head"><h2>${icon('hand')}Attendance & feedback</h2><span class="pill">This device</span></div>
-    ${setting('Undo window', 'How long the Undo button stays available after a swipe.', seg('undoSeconds', [[5, '5s'], [10, '10s'], [30, '30s']]))}
-    ${setting('Swipe sensitivity', 'Distance needed to commit a swipe. Fast flicks always count.', seg('swipeSensitivity', [['gentle', 'Gentle'], ['balanced', 'Balanced'], ['quick', 'Quick']]))}
-    ${setting('Confirm before absent', 'Ask before marking someone absent.', toggle('confirmAbsent', 'Confirm before absent'))}
-    ${setting('Haptics', 'Vibrate on supported phones.', toggle('haptics', 'Haptics'))}
-    ${setting('Sounds', 'Soft clicks for swipes, wheel ticks and results.', toggle('sound', 'Sounds'))}</section>`;
+    ${setting('Undo window', '', seg('undoSeconds', [[5, '5s'], [10, '10s'], [30, '30s']]))}
+    ${setting('Swipe sensitivity', 'Fast flicks always count.', seg('swipeSensitivity', [['gentle', 'Gentle'], ['balanced', 'Balanced'], ['quick', 'Quick']]))}
+    ${setting('Confirm before absent', '', toggle('confirmAbsent', 'Confirm before absent'))}
+    ${setting('Haptics', 'Supported phones only.', toggle('haptics', 'Haptics'))}
+    ${setting('Sounds', '', toggle('sound', 'Sounds'))}</section>`;
 }
 
 function workspace() {
@@ -67,7 +68,7 @@ function workspace() {
 function access() {
   const w = S.ws(), me = S.me(), editable = S.can('settings.access'), titles = S.cfg().titles;
   const counts = [0, 1, 2, 3].map(l => w.people.filter(p => p.level === l).length);
-  return `<section class="card"><div class="card-head"><div><h2>${icon('shield')}Access & hierarchy</h2><p class="sub">Each feature is available from a minimum level upward. Everyone acts only inside their own branch. The owner can do everything.</p></div>
+  return `<section class="card"><div class="card-head"><div><h2>Access</h2><p class="sub">Minimum level per feature · owners can do everything</p></div>
       ${editable ? `<button class="btn sm ghost" type="button" data-action="policy-reset">${icon('refresh')}Defaults</button>` : `<span class="pill">${icon('lock')}Read only</span>`}</div>
     <div class="table-wrap"><table class="matrix"><thead><tr><th>Feature</th>${[0, 1, 2, 3].map(l => `<th class="${me.level === l ? 'current' : ''}">L${l}<br>${esc(titles[l as 0])}<br><span class="muted">${plural(counts[l]!, 'person', 'people')}</span></th>`).join('')}</tr></thead><tbody>
       ${FEATURES.map(f => {
@@ -84,7 +85,7 @@ function access() {
 function data() {
   const bytes = S.storageBytes(), w = S.ws();
   return `<section class="card"><div class="card-head"><h2>${icon('database')}Data & privacy</h2></div>
-    <div class="notice" style="margin-bottom:12px">${icon('shield')}<span>Everything is stored only in this browser's local storage. There is no account or server. QR codes carry details between devices only when someone scans them.</span></div>
+    <div class="notice" style="margin-bottom:12px">${icon('shield')}<span>Stored only in this browser. No account, no server.</span></div>
     ${setting('Storage used', `${(bytes / 1024).toFixed(1)} KB across ${plural(Object.keys(S.data.workspaces).length, 'workspace')}. Browsers allow roughly 5 MB.`, `<div class="meter" style="width:160px"><span data-width="${Math.min(100, (bytes / 5e6) * 100).toFixed(1)}%"></span></div>`)}
     ${setting('Export backup', 'Download all workspaces and settings as JSON.', `<button class="btn" type="button" data-action="backup-export">${icon('download')}Export</button>`)}
     ${setting('Import backup', 'Replaces everything on this device with the file’s contents.', `<label class="btn" for="backup-file">${icon('upload')}Import</label><input class="sr-only" type="file" id="backup-file" accept="application/json,.json" data-change="backup-import">`)}
@@ -103,7 +104,7 @@ export const settingsView: View = {
     const id = SECTIONS.some(s => s[0] === sub) ? sub : 'appearance';
     if (id !== 'workspace') days = null;
     const body = id === 'appearance' ? appearance() : id === 'attendance' ? attendanceSec() : id === 'workspace' ? workspace() : id === 'access' ? access() : id === 'data' ? data() : about();
-    return `${pageHead({ title: 'Settings', lede: 'Device preferences apply only here. Workspace and access settings follow the hierarchy.' })}
+    return `${pageHead({ title: 'Settings' })}
       <div class="settings-layout"><nav class="settings-nav" aria-label="Settings sections">${SECTIONS.map(([k, l, ic, req]) => `<a href="#/settings/${k}" ${k === id ? 'aria-current="true"' : ''}>${icon(ic)}${l}${req && !S.can(req) ? icon('lock', 'lock') : ''}</a>`).join('')}</nav><div class="stack loose">${body}</div></div>`;
   },
   actions: {

@@ -1,6 +1,7 @@
 import { historicalPerson, HISTORY_LIMIT, initializeHistory } from './history';
 import { cleanScores } from './engagement';
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
+import { sanitizeDucks } from './ducks';
 import { sanitizeQuestion } from './games';
 import { cleanText, COMMITMENTS, configFromPreset, indexOrg, ancestors, isIsoDate, LEVELS, sanitizeAnnouncementText, sanitizeConfig, sanitizePolicy, statusOf } from './model';
 import type { AppData, AttendanceRecord, AuditEntry, Commitment, CommitmentRecord, Invite, Level, Person, Settings, Workspace } from './types';
@@ -16,6 +17,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
   density: ['compact', 'comfortable'],
   textSize: ['default', 'large'],
   motion: ['system', 'full', 'reduced'],
+  glass: ['regular', 'clear', 'tinted'],
   undoSeconds: [5, 10, 30],
   swipeSensitivity: ['gentle', 'balanced', 'quick'],
   triviaTimer: [0, 15, 30],
@@ -25,7 +27,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system',
+  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system', glass: 'regular',
   undoSeconds: 10, swipeSensitivity: 'balanced', triviaTimer: 0, sound: false, haptics: true, confirmAbsent: false,
 };
 
@@ -158,6 +160,7 @@ export function sanitizeWorkspace(input: unknown): Workspace | null {
     trivia: arr(o.trivia).slice(0, 500).map(sanitizeQuestion).filter((q): q is NonNullable<typeof q> => !!q),
     playScores: cleanScores(o.playScores, people),
     gameEntries: typeof o.gameEntries === 'string' ? o.gameEntries.slice(0, 2000) : '',
+    ducks: sanitizeDucks(o.ducks),
     ...(ID_RE.test(String(link.inviteId)) && TOKEN_RE.test(String(link.token)) ? { link: { inviteId: String(link.inviteId), token: String(link.token), joinedAt: num(link.joinedAt) } } : {}),
   };
   initializeHistory(workspace);

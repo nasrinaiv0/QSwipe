@@ -3,7 +3,7 @@ import { bus } from './bus';
 import { descendants, requiredLevel } from './core/model';
 import * as S from './state/store';
 import { openJoinScanner, openTeamScanner, showMyJoinCode, showPass } from './qr/flows';
-import { $, avatar, closeDialog, dialogShell, esc, firstName, icon, openDialog, plural, toast, withTransition } from './ui/kit';
+import { $, avatar, closeDialog, dialogShell, esc, firstName, icon, openDialog, plural, slideFrom, toast, withTransition } from './ui/kit';
 
 export interface Page { id: string; label: string; icon: string; group: string; key: string; requires?: string }
 export const PAGES: Page[] = [
@@ -58,8 +58,10 @@ export function renderShell() {
       <button class="me-btn" type="button" data-action="open-account" aria-label="Account: ${esc(me.name)}">${avatar(me, 'sm', { round: true })}<span class="who"><strong>${esc(me.name)}</strong><small>${esc(S.levelTitle(me.level))}</small></span>${icon('chevronDown')}</button>
     </div>`;
   const moreActive = !TABBAR.includes(page.id), moreBadge = S.unreadCount();
+  const prevTab = $('#tabbar .tab[aria-current]')?.getBoundingClientRect();
   $('#tabbar')!.innerHTML = TABBAR.map(id => PAGES.find(p => p.id === id)!).map(p => `<a class="tab" href="#/${p.id}" ${page.id === p.id ? 'aria-current="page"' : ''}>${icon(p.icon)}<span>${p.label}</span></a>`).join('')
     + `<button class="tab" type="button" data-action="open-more" ${moreActive ? 'aria-current="page"' : ''} aria-label="More${moreBadge ? `, ${moreBadge} unread` : ''}">${icon('grid')}<span>More</span>${moreBadge ? `<span class="badge">${moreBadge}</span>` : ''}</button>`;
+  slideFrom(prevTab, $('#tabbar .tab[aria-current]'));
   document.title = `${page.label} · ${c.name} · QSwipe`;
 }
 
@@ -76,8 +78,9 @@ export function applyAppearance() {
   root.dataset.accent = s.accent;
   s.density === 'comfortable' ? (root.dataset.density = 'comfortable') : delete root.dataset.density;
   s.textSize === 'large' ? (root.dataset.text = 'large') : delete root.dataset.text;
+  s.glass !== 'regular' ? (root.dataset.glass = s.glass) : delete root.dataset.glass;
   s.motion === 'reduced' || (s.motion === 'system' && mqMotion.matches) ? (root.dataset.motion = 'reduce') : delete root.dataset.motion;
-  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#0e1210' : '#f4f5f1';
+  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#000000' : '#f2f2f7';
 }
 mqDark.addEventListener('change', () => { applyAppearance(); if (S.hasWorkspace()) renderShell(); });
 mqMotion.addEventListener('change', applyAppearance);
@@ -169,16 +172,16 @@ function moreSheet() {
 /* Command palette                                                     */
 /* ------------------------------------------------------------------ */
 
-interface Entry { group: string; label: string; hint?: string; icon?: string; personId?: string; run: () => void }
+interface Entry { group: string; label: string; hint?: string; keys?: boolean; icon?: string; personId?: string; run: () => void }
 
 function entries(): Entry[] {
-  const out: Entry[] = PAGES.map(p => ({ group: 'Go to', label: p.label, hint: isLocked(p) ? 'Locked' : `G then ${p.key.toUpperCase()}`, icon: p.icon, run: () => bus.navigate(p.id) }));
+  const out: Entry[] = PAGES.map(p => ({ group: 'Go to', label: p.label, hint: isLocked(p) ? 'Locked' : `G then ${p.key.toUpperCase()}`, keys: !isLocked(p), icon: p.icon, run: () => bus.navigate(p.id) }));
   out.push({ group: 'Actions', label: 'Scan QR code', icon: 'scan', run: openTeamScanner });
   if (S.can('people.manage')) out.push({ group: 'Actions', label: 'Join my team · show invite QR', icon: 'qr', run: () => bus.navigate('team', 'invites') });
   out.push({ group: 'Actions', label: 'Join the team · scan an invite', icon: 'userPlus', run: openJoinScanner });
   if (S.self().passKey) out.push({ group: 'Actions', label: 'My check-in pass', icon: 'qr', run: () => void showPass() });
   out.push({ group: 'Actions', label: 'Toggle dark mode', icon: 'moon', run: toggleTheme });
-  out.push({ group: 'Actions', label: 'Keyboard shortcuts', icon: 'keyboard', hint: '?', run: () => setTimeout(shortcutsDialog, 30) });
+  out.push({ group: 'Actions', label: 'Keyboard shortcuts', icon: 'keyboard', hint: '?', keys: true, run: () => setTimeout(shortcutsDialog, 30) });
   for (const p of S.ws().people) out.push({ group: 'People', label: p.name, hint: `${S.levelTitle(p.level)}${S.branchName(p) ? ` · ${S.branchName(p)}` : ''}`, personId: p.id, run: () => bus.navigate('team', p.id) });
   for (const w of Object.values(S.data.workspaces)) if (w.id !== S.data.activeId) out.push({ group: 'Workspaces', label: w.config.name, icon: 'building', run: () => switchTo(w.id) });
   return out;
@@ -191,7 +194,7 @@ export function commandPalette() {
     let i = 0;
     return [...new Set(list.map(e => e.group))].map(g => `<div class="picker-group">${esc(g)}</div>${list.filter(e => e.group === g).map(e => {
       const idx = i++, person = e.personId ? S.org().byId.get(e.personId) : undefined;
-      return `<button class="picker-item" type="button" role="option" id="pal-${idx}" data-pal="${idx}" aria-selected="${idx === active}">${person ? avatar(person, 'xs', { round: true }) : icon(e.icon ?? 'arrowRight')}<span class="grow"><strong>${esc(e.label)}</strong>${e.hint ? `<small>${esc(e.hint)}</small>` : ''}</span></button>`;
+      return `<button class="picker-item" type="button" role="option" id="pal-${idx}" data-pal="${idx}" aria-selected="${idx === active}">${person ? avatar(person, 'xs', { round: true }) : icon(e.icon ?? 'arrowRight')}<span class="grow"><strong>${esc(e.label)}</strong>${e.hint ? `<small${e.keys ? ' class="keys"' : ''}>${esc(e.hint)}</small>` : ''}</span></button>`;
     }).join('')}`).join('') || '<p class="muted" style="padding:16px">No matches.</p>';
   };
   const ordered = (xs: Entry[]) => [...new Set(xs.map(e => e.group))].flatMap(g => xs.filter(e => e.group === g));

@@ -4,7 +4,7 @@ import { attendanceRate, commitmentOf, dailySeries, relativeTime, rosterStats, s
 import type { Commitment } from '../core/types';
 import { showPass } from '../qr/flows';
 import * as S from '../state/store';
-import { COMMIT_META, esc, firstName, fmtDate, fmtTime, haptic, icon, plural, toast } from '../ui/kit';
+import { COMMIT_META, esc, firstName, fmtDate, fmtTime, haptic, icon, toast } from '../ui/kit';
 import { kpi, pageHead, type View } from './common';
 
 function greeting() {
@@ -31,7 +31,7 @@ function checklist(): string {
   if (items.every(i => i[0]) || w.people.length > 6) return '';
   const done = items.filter(i => i[0]).length;
   return `<section class="card" aria-labelledby="setup-h"><div class="card-head"><h2 id="setup-h">${icon('sparkles')}Get set up</h2><span class="pill">${done}/${items.length}</span></div>
-    <div class="list">${items.map(([ok, title, sub, href]) => `<a class="row interactive" href="${href}" style="text-decoration:none"><span class="pill ${ok ? 'good' : ''}">${icon(ok ? 'check' : 'arrowRight')}</span><span class="grow"><strong>${esc(title)}</strong><small>${esc(sub)}</small></span>${icon('chevronRight')}</a>`).join('')}</div></section>`;
+    <div class="list">${items.map(([ok, title, , href]) => `<a class="row interactive" href="${href}" style="text-decoration:none"><span class="pill ${ok ? 'good' : ''}">${icon(ok ? 'check' : 'arrowRight')}</span><span class="grow"><strong>${esc(title)}</strong></span>${icon('chevronRight')}</a>`).join('')}</div></section>`;
 }
 
 export const today: View = {
@@ -47,21 +47,20 @@ export const today: View = {
     const unread = S.unreadCount();
     const status = statusOf(mine);
 
+    const title = status === 'present' ? `Checked in${mine?.at ? ` · ${fmtTime(mine.at)}` : ''}` : status === 'absent' ? 'Marked absent' : sessionDay ? 'Not checked in' : 'No session today';
     const hero = `<section class="hero"><div>
-      <span class="eyebrow">Your check-in · ${esc(fmtDate(t, { weekday: 'long', month: 'short', day: 'numeric' }))}</span>
-      <h2>${status === 'present' ? `You're checked in${mine?.at ? ` at ${fmtTime(mine.at)}` : ''}.` : status === 'absent' ? 'Marked absent today.' : sessionDay ? 'Ready when you are.' : 'No session scheduled today.'}</h2>
-      <p>${sessionDay ? `${esc(c.name)} · ${esc(shiftLabel(c))}` : `Next session: ${esc(fmtDate(next))}. You can still confirm availability below.`}</p>
+      <h2>${esc(title)}</h2>
+      <p>${sessionDay ? esc(shiftLabel(c)) : `Next: ${esc(fmtDate(next))}`}</p></div>
       <div class="cluster">
-        ${!status && sessionDay ? `<button class="btn primary" type="button" data-action="self-checkin">${icon('login')}Check in now</button>` : status === 'present' ? `<span class="checkin-state">${icon('check')}Present</span>` : ''}
-        ${S.self().passKey && !S.session.previewId ? `<button class="btn outline" type="button" data-action="show-pass">${icon('qr')}My check-in pass</button>` : ''}
-        ${verify ? `<a class="btn ghost" href="#/attendance">${icon('hand')}Verify ${esc(c.groupLabel.toLowerCase())}</a>` : ''}
-      </div></div><img class="hero-cube" src="./brand.svg" alt=""></section>`;
+        ${!status && sessionDay ? `<button class="btn primary" type="button" data-action="self-checkin">${icon('login')}Check in</button>` : status === 'present' ? `<span class="checkin-state">${icon('check')}Present</span>` : ''}
+        ${S.self().passKey && !S.session.previewId ? `<button class="btn outline" type="button" data-action="show-pass">${icon('qr')}My pass</button>` : ''}
+      </div></section>`;
 
     const kpis = verify ? `<div class="kpis reveal">
-      ${kpi({ label: 'In your branch', value: stats.scheduled, icon: 'users', foot: S.scopeLabel() })}
-      ${kpi({ label: 'Present', value: stats.present, icon: 'check', foot: 'Today' })}
-      ${kpi({ label: 'Absent', value: stats.absent, icon: 'x', foot: 'Today' })}
-      ${kpi({ label: 'Unmarked', value: stats.pending, icon: 'clock', foot: stats.pending ? 'Needs review' : 'All caught up', accent: stats.pending > 0 })}
+      ${kpi({ label: 'Team', value: stats.scheduled, href: '#/team/people' })}
+      ${kpi({ label: 'Present', value: stats.present, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="present"' })}
+      ${kpi({ label: 'Absent', value: stats.absent, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="absent"' })}
+      ${kpi({ label: 'Unmarked', value: stats.pending, accent: stats.pending > 0, href: '#/attendance', attrs: 'data-action="kpi-filter" data-filter="pending"' })}
     </div>` : '';
 
     const pulse = (() => {
@@ -70,31 +69,31 @@ export const today: View = {
       const series = dailySeries(team, d => S.ws().attendance[d], dates);
       if (!series.some(d => d.present + d.absent)) return '';
       const max = 100;
-      return `<section class="card"><div class="card-head"><h2>${icon('reports')}Attendance pulse</h2><a class="btn sm ghost" href="#/reports">Reports ${icon('arrowRight')}</a></div>
+      return `<section class="card"><div class="card-head"><h2>Attendance</h2><a class="btn sm ghost" href="#/reports">Reports ${icon('arrowRight')}</a></div>
         <div class="spark" role="img" aria-label="Attendance rate over the last ${dates.length} sessions">${series.map((d, i) => {
           const rate = attendanceRate(d);
           return `<span class="${rate === null ? 'empty-bar' : ''} ${d.date === t ? 'today' : ''}" style="--i:${i};height:${rate === null ? 8 : Math.max(6, (rate / max) * 100)}%" title="${esc(fmtDate(d.date))}: ${rate === null ? 'no data' : `${rate}%`}"></span>`;
-        }).join('')}</div><p class="hint" style="margin-top:8px">Rate = present ÷ marked, last ${dates.length} sessions. Unmarked never counts as absent.</p></section>`;
+        }).join('')}</div></section>`;
     })();
 
-    return `${pageHead({ eyebrow: fmtDate(t, { weekday: 'long', month: 'long', day: 'numeric' }), title: `${greeting()}, ${firstName(me.name)}.`, lede: `${S.levelTitle(me.level)}${S.branchName(me) ? ` · ${S.branchName(me)}` : ''} · ${c.name}` })}
+    return `${pageHead({ title: `${greeting()}, ${firstName(me.name)}`, lede: fmtDate(t, { weekday: 'long', month: 'long', day: 'numeric' }) })}
       ${hero}
       ${kpis}
-      ${verify && stats.pending && sessionDay ? `<div class="notice" style="margin-bottom:var(--gap)">${icon('info')}<span>${plural(stats.pending, 'person is', 'people are')} not marked yet. <a href="#/attendance"><b>Open the swipe queue</b></a> or <button class="btn sm soft" type="button" data-action="scan">${icon('scan')}scan passes</button></span></div>` : ''}
       <div class="grid two reveal">
         ${engagementSummary()}
         ${checklist()}
-        <section class="card"><div class="card-head"><div><h2>${icon('commitments')}Next session</h2><p class="sub">${esc(fmtDate(next, { weekday: 'long', month: 'short', day: 'numeric' }))} · ${esc(shiftLabel(c))}</p></div><a class="btn sm ghost" href="#/commitments">Plan ${icon('arrowRight')}</a></div>${choiceGrid(next)}</section>
-        <section class="card"><div class="card-head"><h2>${icon('updates')}Updates ${unread ? `<span class="badge">${unread}</span>` : ''}</h2><a class="btn sm ghost" href="#/updates">All ${icon('arrowRight')}</a></div>
+        <section class="card"><div class="card-head"><div><h2>Next session</h2><p class="sub">${esc(fmtDate(next))}</p></div><a class="btn sm ghost" href="#/commitments">Plan ${icon('arrowRight')}</a></div>${choiceGrid(next)}</section>
+        <section class="card"><div class="card-head"><h2>Updates ${unread ? `<span class="badge">${unread}</span>` : ''}</h2><a class="btn sm ghost" href="#/updates">All ${icon('arrowRight')}</a></div>
           ${posts.length ? `<div class="list">${posts.map(a => {
             const author = S.org().byId.get(a.authorId);
             return `<a class="row interactive" href="#/updates" style="text-decoration:none"><span class="grow"><strong class="truncate">${a.priority === 'important' ? '⚑ ' : ''}${esc(a.text.split('\n')[0]!.slice(0, 90))}</strong><small>${esc(author?.name ?? 'Former member')} · ${relativeTime(a.at)}</small></span>${S.isRead(a) ? '' : '<span class="badge">New</span>'}</a>`;
-          }).join('')}</div>` : `<p class="muted small">No announcements yet.${S.can('updates.post') ? ' Post the first one from Updates.' : ''}</p>`}
+          }).join('')}</div>` : '<p class="muted small">No updates yet.</p>'}
         </section>
         ${pulse}
       </div>`;
   },
   actions: {
+    'kpi-filter': el => { S.session.ui.rosterFilter = el.dataset.filter!; },
     'self-checkin': () => {
       const res = S.mark(S.me().id, 'present', 'self', S.session.today);
       if (!res.ok) return void toast(res.error, { icon: 'alert' });

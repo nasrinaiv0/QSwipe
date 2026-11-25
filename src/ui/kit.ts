@@ -3,6 +3,7 @@ import { hueOf, initialsOf } from '../core/model';
 import type { Commitment, Person, Status, Titles } from '../core/types';
 import { settings } from '../state/store';
 import { icon } from './icons';
+import { mascot, moodFor, type Mood } from './mascot';
 
 export const $ = <T extends Element = HTMLElement>(s: string, root: ParentNode = document) => root.querySelector<T>(s);
 export const $$ = <T extends Element = HTMLElement>(s: string, root: ParentNode = document) => [...root.querySelectorAll<T>(s)];
@@ -28,9 +29,9 @@ export function avatar(p: Person | undefined, size = '', opts: { status?: Status
 }
 
 export function statusPill(status: Status | undefined | null, compact = false): string {
-  if (status === 'present') return `<span class="pill good">${icon('check')}${compact ? '' : 'Present'}</span>`;
-  if (status === 'absent') return `<span class="pill bad">${icon('x')}${compact ? '' : 'Absent'}</span>`;
-  return `<span class="pill">${icon('clock')}${compact ? '' : 'Unmarked'}</span>`;
+  if (status === 'present') return `<span class="pill good status" title="Present">${icon('check')}${compact ? '' : 'Present'}</span>`;
+  if (status === 'absent') return `<span class="pill bad status" title="Absent">${icon('x')}${compact ? '' : 'Absent'}</span>`;
+  return `<span class="pill status" title="Unmarked">${icon('clock')}${compact ? '' : 'Unmarked'}</span>`;
 }
 
 export const COMMIT_META: Record<Commitment, { label: string; cls: string; icon: string; blurb: string }> = {
@@ -40,7 +41,7 @@ export const COMMIT_META: Record<Commitment, { label: string; cls: string; icon:
 };
 export function commitPill(c: Commitment | undefined): string {
   const m = c && COMMIT_META[c];
-  return m ? `<span class="pill ${m.cls}">${icon(m.icon)}${m.label}</span>` : `<span class="pill">${icon('clock')}No reply</span>`;
+  return m ? `<span class="pill ${m.cls} status" title="${m.label}">${icon(m.icon)}${m.label}</span>` : `<span class="pill status" title="No reply">${icon('clock')}No reply</span>`;
 }
 
 export const levelChip = (p: Person, titles?: Titles) =>
@@ -137,9 +138,51 @@ export function openDialog(o: { html: string; className?: string; label?: string
   const onClick = (e: MouseEvent) => { if (e.target === dlg) closeDialog(); };
   dlg.addEventListener('cancel', onCancel);
   dlg.addEventListener('click', onClick);
-  cleanup = () => { dlg.removeEventListener('cancel', onCancel); dlg.removeEventListener('click', onClick); o.onClose?.(); };
+  const undrag = sheetDrag(dlg);
+  cleanup = () => { dlg.removeEventListener('cancel', onCancel); dlg.removeEventListener('click', onClick); undrag(); o.onClose?.(); };
   o.onOpen?.(dlg);
   return dlg;
+}
+
+/**
+ * Phone sheets follow the finger when dragged by the grabber or header, and close when pulled down far or fast
+ * enough; otherwise they spring back. Upward drags meet rubber-band resistance.
+ */
+function sheetDrag(dlg: HTMLDialogElement): () => void {
+  const phone = matchMedia('(max-width: 760px)');
+  let id = -1, y0 = 0, t0 = 0, dy = 0;
+  const down = (e: PointerEvent) => {
+    const t = e.target as Element;
+    if (!phone.matches || e.button !== 0 || !t.closest('.sheet-grip, .dialog-head') || t.closest('button, a, input, select, textarea, label')) return;
+    id = e.pointerId; y0 = e.clientY; t0 = e.timeStamp; dy = 0;
+    t.setPointerCapture(id);
+    dlg.classList.add('dragging');
+  };
+  const move = (e: PointerEvent) => {
+    if (e.pointerId !== id) return;
+    const d = e.clientY - y0;
+    dy = d > 0 ? d : -Math.sqrt(-d) * 2;
+    dlg.style.transform = `translateY(${dy}px)`;
+  };
+  const up = (e: PointerEvent) => {
+    if (e.pointerId !== id) return;
+    id = -1;
+    dlg.classList.remove('dragging');
+    const speed = dy / Math.max(1, e.timeStamp - t0);
+    if (e.type === 'pointerup' && (dy > dlg.offsetHeight * 0.28 || (dy > 24 && speed > 0.55))) closeDialog();
+    else dlg.style.transform = '';
+  };
+  dlg.addEventListener('pointerdown', down);
+  dlg.addEventListener('pointermove', move);
+  dlg.addEventListener('pointerup', up);
+  dlg.addEventListener('pointercancel', up);
+  return () => {
+    dlg.removeEventListener('pointerdown', down);
+    dlg.removeEventListener('pointermove', move);
+    dlg.removeEventListener('pointerup', up);
+    dlg.removeEventListener('pointercancel', up);
+    dlg.classList.remove('dragging');
+  };
 }
 
 export function closeDialog(immediate = false) {
@@ -147,6 +190,7 @@ export function closeDialog(immediate = false) {
   if (!dlg.open) return;
   const finish = () => {
     dlg.classList.remove('closing');
+    dlg.style.transform = '';
     dlg.close();
     dlg.innerHTML = '';
     document.body.classList.remove('no-scroll');
@@ -286,11 +330,11 @@ export function photoFromFile(file: File, size = 128): Promise<string> {
 }
 
 export const lockedPanel = (o: { title: string; need: string; body?: string }) =>
-  `<div class="empty"><div class="empty-icon">${icon('lock')}</div><strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
-  <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}View team structure</a></div></div>`;
+  `<div class="empty">${mascot('oops', { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
+  <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}Team</a></div></div>`;
 
-export const emptyState = (o: { icon: string; title: string; body: string; actions?: string }) =>
-  `<div class="empty"><div class="empty-icon">${icon(o.icon)}</div><strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
+export const emptyState = (o: { icon: string; title: string; body: string; actions?: string; mood?: Mood }) =>
+  `<div class="empty">${mascot(o.mood ?? moodFor(o.icon), { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
 
 /** Runs a DOM update inside a View Transition when supported and motion is allowed. Interrupted transitions are harmless. */
 export function withTransition(update: () => void) {
@@ -298,4 +342,20 @@ export function withTransition(update: () => void) {
   const vt = document.startViewTransition(update);
   vt.ready.catch(() => {});
   vt.finished.catch(() => {});
+}
+
+/**
+ * iOS-style sliding selection. Animates the selected element's ::before "thumb" from where the previous selection
+ * sat (segmented controls, the tab bar lens). Only horizontal moves within the same row animate.
+ */
+export function slideFrom(prev: DOMRect | null | undefined, el: Element | null | undefined) {
+  if (!prev || !(el instanceof HTMLElement) || reducedMotion()) return;
+  const r = el.getBoundingClientRect();
+  if (!r.width || Math.abs(prev.top - r.top) > 4 || (Math.abs(prev.left - r.left) < 1 && Math.abs(prev.width - r.width) < 1)) return;
+  el.style.setProperty('--thumb-dx', `${prev.left - r.left}px`);
+  el.style.setProperty('--thumb-sx', String(prev.width / r.width));
+  el.classList.remove('thumb-move');
+  void el.offsetWidth;
+  el.classList.add('thumb-move');
+  el.addEventListener('animationend', () => el.classList.remove('thumb-move'), { once: true });
 }

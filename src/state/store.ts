@@ -3,6 +3,7 @@ import { addScore, type PlayScore } from '../core/engagement';
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
 import { emptyAppData, sanitizeAppData, sanitizeSettings, STORAGE_KEY } from '../core/data';
+import { duckKey, MAX_SAVED_LOOKS, sanitizeLook, type DuckLook } from '../core/ducks';
 import { sanitizeQuestion } from '../core/games';
 import * as M from '../core/model';
 import type { AppData, AuditEntry, Commitment, Invite, Level, Org, Person, Settings, Status, TriviaQuestion, Workspace, WorkspaceConfig } from '../core/types';
@@ -45,9 +46,13 @@ export function load(): void {
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
-export const persist = () => { clearTimeout(timer); timer = setTimeout(flush, 120); };
-export function flush(): boolean {
+/** True while there are changes not yet written; flushing a clean state must never overwrite newer storage. */
+let dirty = false;
+export const persist = () => { dirty = true; clearTimeout(timer); timer = setTimeout(flush, 120); };
+export function flush(force = false): boolean {
   clearTimeout(timer);
+  if (!dirty && !force) return true;
+  dirty = false;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch {
     document.dispatchEvent(new CustomEvent('qswipe:storage-error'));
     return false;
@@ -141,7 +146,7 @@ export function deleteWorkspace(id: string): void {
   delete data.workspaces[id];
   data.activeId = Object.keys(data.workspaces)[0] ?? null;
   resetSession();
-  flush();
+  flush(true);
 }
 
 export function setPreview(id: string | null): boolean {
@@ -441,6 +446,18 @@ export function updateConfig(patch: Partial<WorkspaceConfig>): boolean {
   return true;
 }
 
+export function setDuckLook(name: string, look: DuckLook): boolean {
+  const clean = sanitizeLook(look), key = duckKey(name);
+  if (!clean || !key) return false;
+  const ducks = ws().ducks;
+  delete ducks[key];
+  ducks[key] = clean;
+  const keys = Object.keys(ducks);
+  for (const k of keys.slice(0, Math.max(0, keys.length - MAX_SAVED_LOOKS))) delete ducks[k];
+  persist();
+  return true;
+}
+
 export function recordPlayScores(scores: PlayScore[]): number {
   if (session.previewId) return 0;
   const allowed=new Set([me(),...visiblePeople()].map(p=>p.id));
@@ -451,7 +468,7 @@ export function recordPlayScores(scores: PlayScore[]): number {
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }
 
-export function replaceData(next: AppData) { data = next; resetSession(); flush(); }
+export function replaceData(next: AppData) { data = next; resetSession(); flush(true); }
 export function clearWorkspaceRecords() {
   const w = ws();
   Object.assign(w, { attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [] });
