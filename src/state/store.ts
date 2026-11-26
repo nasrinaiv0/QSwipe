@@ -467,6 +467,14 @@ export function recordPlayScores(scores: PlayScore[]): number {
 }
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }
+/** Saves a typing result if it beats the stored best for that test length; returns true for a new personal best. */
+export function setTypingBest(seconds: number, rec: import('../core/typing').TypingRecord): boolean {
+  const key = String(seconds) as `${import('../core/typing').Duration}`, prev = data.typing[key];
+  if (prev && prev.wpm >= rec.wpm) return false;
+  data.typing[key] = rec;
+  persist();
+  return true;
+}
 
 export function replaceData(next: AppData) { data = next; resetSession(); flush(true); }
 export function clearWorkspaceRecords() {

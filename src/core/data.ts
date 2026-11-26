@@ -2,6 +2,7 @@ import { historicalPerson, HISTORY_LIMIT, initializeHistory } from './history';
 import { cleanScores } from './engagement';
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
 import { sanitizeDucks } from './ducks';
+import { sanitizeTypingBests } from './typing';
 import { sanitizeQuestion } from './games';
 import { cleanText, COMMITMENTS, configFromPreset, indexOrg, ancestors, isIsoDate, LEVELS, sanitizeAnnouncementText, sanitizeConfig, sanitizePolicy, statusOf } from './model';
 import type { AppData, AttendanceRecord, AuditEntry, Commitment, CommitmentRecord, Invite, Level, Person, Settings, Workspace } from './types';
@@ -18,6 +19,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
   textSize: ['default', 'large'],
   motion: ['system', 'full', 'reduced'],
   glass: ['regular', 'clear', 'tinted'],
+  platform: ['auto', 'ios', 'android'],
   undoSeconds: [5, 10, 30],
   swipeSensitivity: ['gentle', 'balanced', 'quick'],
   triviaTimer: [0, 15, 30],
@@ -27,7 +29,7 @@ export const SETTING_OPTIONS: { [K in keyof Settings]: readonly Settings[K][] } 
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system', glass: 'regular',
+  theme: 'system', accent: 'green', density: 'compact', textSize: 'default', motion: 'system', glass: 'regular', platform: 'auto',
   undoSeconds: 10, swipeSensitivity: 'balanced', triviaTimer: 0, sound: false, haptics: true, confirmAbsent: false,
 };
 
@@ -44,7 +46,7 @@ export function sanitizeSettings(input: unknown): Settings {
 
 export const swipeThreshold = (s: Settings['swipeSensitivity']) => ({ gentle: 130, balanced: 95, quick: 65 })[s];
 
-export const emptyAppData = (): AppData => ({ v: 3, activeId: null, workspaces: {}, settings: { ...DEFAULT_SETTINGS }, triviaBest: 0 });
+export const emptyAppData = (): AppData => ({ v: 3, activeId: null, workspaces: {}, settings: { ...DEFAULT_SETTINGS }, triviaBest: 0, typing: {} });
 
 const num = (v: unknown, f = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : f);
 const obj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
@@ -176,7 +178,7 @@ export function sanitizeAppData(input: unknown): AppData {
   }
   const activeId = typeof o.activeId === 'string' && workspaces[o.activeId] ? o.activeId : Object.keys(workspaces)[0] ?? null;
   const best = num(o.triviaBest);
-  return { v: 3, activeId, workspaces, settings: sanitizeSettings(o.settings), triviaBest: best >= 0 && best <= 100 ? Math.round(best) : 0 };
+  return { v: 3, activeId, workspaces, settings: sanitizeSettings(o.settings), triviaBest: best >= 0 && best <= 100 ? Math.round(best) : 0, typing: sanitizeTypingBests(o.typing) };
 }
 
 export function parseBackup(text: string): AppData {

@@ -24,7 +24,7 @@ export class Pond {
   private trails: { x: number; y: number; age: number }[][] = [];
   private lastRing: number[] = [];
   private last = 0;
-  /** Static water (gradient, lane tints, start line, finish band), rebuilt on resize or theme change. */
+  /** Static water (flat colour, lane tints, start line, finish band), rebuilt on resize or theme change. */
   private base: HTMLCanvasElement | null = null;
   private baseKey = '';
   /** Adaptive quality: drops to "lite" (one ripple layer, no sheen, 1x pixels) when frames run slow. */
@@ -75,10 +75,7 @@ export class Pond {
     c.height = this.canvas.height;
     const ctx = c.getContext('2d')!, { w, h } = this, lh = this.laneH;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, th.top);
-    g.addColorStop(1, th.bottom);
-    ctx.fillStyle = g;
+    ctx.fillStyle = th.top;
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = th.laneTint;
     for (let i = 0; i < this.lanes; i += 2) ctx.fillRect(0, this.top + i * lh, w, lh);
@@ -96,11 +93,6 @@ export class Pond {
     for (let y = 0, row = 0; y < h; y += sq, row++) ctx.rect(fx + (row % 2) * sq, y, sq, sq);
     ctx.fillStyle = th.check;
     ctx.fill();
-    const edge = ctx.createLinearGradient(0, 0, 0, 10);
-    edge.addColorStop(0, th.bank);
-    edge.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = edge;
-    ctx.fillRect(0, 0, w, 10);
   }
 
   private adapt(dt: number) {
@@ -122,17 +114,6 @@ export class Pond {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(this.base!, 0, 0);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-
-    // Slow light sheen drifting across the surface.
-    if (!this.lite) {
-      const sx = ((t * 0.025) % (w * 2.4)) - w * 0.7;
-      const sheen = ctx.createLinearGradient(sx, 0, sx + w * 0.6, this.h);
-      sheen.addColorStop(0, ink(0));
-      sheen.addColorStop(0.5, ink(0.07));
-      sheen.addColorStop(1, ink(0));
-      ctx.fillStyle = sheen;
-      ctx.fillRect(0, 0, w, this.h);
-    }
 
     // Layered ripples: dashed sine lines flowing left at different speeds.
     ctx.lineWidth = 1.2;
@@ -174,11 +155,7 @@ export class Pond {
       while (trail.length && trail[0]!.age > 1100) trail.shift();
       if (d.speed > 0.015 && (!trail.length || d.stern - trail[trail.length - 1]!.x > 3)) trail.push({ x: d.stern, y: d.y, age: 0 });
       if (trail.length > 1) {
-        const tail = trail[0]!;
-        const grad = ctx.createLinearGradient(d.stern, 0, tail.x, 0);
-        grad.addColorStop(0, ink(0.55));
-        grad.addColorStop(1, ink(0));
-        ctx.strokeStyle = grad;
+        ctx.strokeStyle = ink(0.4);
         ctx.lineWidth = 1.6;
         for (const side of [-1, 1]) {
           ctx.beginPath();

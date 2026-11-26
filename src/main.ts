@@ -1,5 +1,6 @@
 import '@fontsource-variable/inter/wght.css';
 import './styles.css';
+import { installRipple } from './ui/ripple';
 import { bus } from './bus';
 import { isoDate } from './core/model';
 import { handleCode } from './qr/flows';
@@ -186,4 +187,5 @@ document.addEventListener('qswipe:storage-error', () => toast('This browser coul
 
 S.load();
 applyAppearance();
+installRipple();
 onRoute();

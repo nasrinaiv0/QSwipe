@@ -1,4 +1,4 @@
-/** Team games: wheel, duck race, pick-a-card, Color Rush and trivia (team question bank + generated math). */
+/** Team games: wheel, duck race, pick-a-card, Color Rush, typing race, trivia and the team challenge. */
 import { challengeView, challengeActions, clearChallenge } from './engagement';
 import { bus } from '../bus';
 import { buildRound, parseEntries, rollIndex, shuffled, sliceAtPointer, triviaCategories, wheelTarget, type RoundQuestion } from '../core/games';
@@ -7,8 +7,9 @@ import { $, $$, confetti, dialogShell, emptyState, esc, haptic, icon, openDialog
 import { pageHead, type View } from './common';
 import { createRace } from './race';
 import { createRush } from './rush';
+import { createTyping } from './typing';
 
-const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Duck race', 'flag'], ['cards', 'Pick a card', 'cards'], ['rush', 'Color Rush', 'sparkles'], ['trivia', 'Trivia', 'bulb'], ['challenge', 'Team challenge', 'users']];
+const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Pick', 'cards'], ['rush', 'Rush', 'sparkles'], ['type', 'Type', 'keyboard'], ['trivia', 'Trivia', 'bulb'], ['challenge', 'Team', 'users']];
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#0e7470', '#c0504d'];
 
 interface Trivia { questions: RoundQuestion[]; index: number; picked: (number | null)[]; score: number; streak: number; best: number; done: boolean; deadline: number }
@@ -56,6 +57,7 @@ const duckRace = createRace({
 });
 
 const rush = createRush({ entries, active: () => activeGame('rush'), onFinish: text => record(text) });
+const typing = createTyping({ entries, onFinish: text => record(text) });
 
 /* ------------------------------------------------------------------ */
 /* Wheel                                                               */
@@ -244,19 +246,21 @@ export const play: View = {
     const liveLink = `<nav class="cluster game-mode-nav" aria-label="Game mode"><a class="btn primary" href="#/play" aria-current="page">On this device</a><a class="btn" href="./rooms/">${icon('users')}Live rooms</a><a class="btn" href="./rooms/attendance.html">Attendance</a></nav>`;
     if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.',actions:liveLink})}${tabs}${challengeView()}`;
     const t = g.trivia;
-    const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : id === 'rush' ? rush.render() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
-    return `${pageHead({ title: 'Play', lede: 'Fair, crypto-random picks and quick games for huddles, classes and meetings.', actions: liveLink })}${tabs}
-      ${id === 'trivia' || id === 'rush' ? `<section class="card"><div class="stage ${id}-stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
+    const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : id === 'rush' ? rush.render() : id === 'type' ? typing.render() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
+    return `${pageHead({ title: 'Play', actions: liveLink })}${tabs}
+      ${id === 'trivia' || id === 'rush' || id === 'type' ? `<section class="card"><div class="stage ${id}-stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
   },
   mount(root) {
     if (game() === 'race') duckRace.mount(root); else duckRace.stop();
     if (game() === 'rush') rush.mount(root); else rush.stop();
+    if (game() === 'type') typing.mount(root); else typing.stop();
     if (game() === 'trivia' && g.trivia && !g.trivia.done) runTimer();
   },
-  unmount() { resetResult();duckRace.stop();rush.stop();g.trivia=null;clearChallenge();lastGame=''; },
+  unmount() { resetResult(); duckRace.stop(); rush.stop(); typing.stop(); g.trivia = null; clearChallenge(); lastGame = ''; },
   onKey(e) {
     const id = game();
     if (id === 'rush') return rush.onKey(e);
+    if (id === 'type') return false;
     if (e.key === ' ' && !e.repeat) { if (id === 'wheel') spin(); else if (id === 'race') duckRace.start(); else return false; return true; }
     if (id === 'trivia' && g.trivia && !g.trivia.done) {
       if (/^[1-4]$/.test(e.key)) { answer(Number(e.key) - 1); return true; }
@@ -266,10 +270,11 @@ export const play: View = {
   },
   actions: {
     ...challengeActions,
-    'game-tab': el => { stop(); duckRace.stop(); rush.stop(); resetResult(); bus.navigate('play', el.dataset.game!); },
+    'game-tab': el => { stop(); duckRace.stop(); rush.stop(); typing.stop(); resetResult(); bus.navigate('play', el.dataset.game!); },
     spin,
     ...duckRace.actions,
     ...rush.actions,
+    ...typing.actions,
     'use-team': () => {
       const people = [S.me(), ...S.visiblePeople()];
       if (people.length < 2) return void toast('Your team has fewer than two people. Type names instead.');

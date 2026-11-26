@@ -27,7 +27,8 @@ function appearance() {
   return `<section class="card"><div class="card-head"><h2>${icon('palette')}Appearance</h2><span class="pill">This device</span></div>
     ${setting('Theme', '', `<div class="theme-cards">${(['system', 'light', 'dark'] as const).map(t => `<button class="theme-card" type="button" data-action="set" data-key="theme" data-value="${t}" aria-pressed="${s.theme === t}"><span class="preview ${t}"><i></i><i></i></span><span>${icon(t === 'system' ? 'monitor' : t === 'light' ? 'sun' : 'moon')}${t[0]!.toUpperCase() + t.slice(1)}</span></button>`).join('')}</div>`, true)}
     ${setting('Accent', '', `<div class="swatches">${(Object.keys(ACCENTS) as Settings['accent'][]).map(a => `<button class="swatch" type="button" style="background:${ACCENTS[a]}" data-action="set" data-key="accent" data-value="${a}" aria-pressed="${s.accent === a}" aria-label="${a}">${icon('check')}</button>`).join('')}</div>`)}
-    ${setting('Glass', 'Clear shows more behind bars and sheets.', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
+    ${setting('Style', 'Automatic follows your device.', seg('platform', [['auto', 'Automatic'], ['ios', 'iOS'], ['android', 'Android']]))}
+    ${document.documentElement.dataset.ui === 'material' ? '' : setting('Glass', 'Clear shows more behind bars and sheets.', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
     ${setting('Density', '', seg('density', [['compact', 'Compact'], ['comfortable', 'Comfortable']]))}
     ${setting('Text size', '', seg('textSize', [['default', 'Default'], ['large', 'Large']]))}
     ${setting('Motion', 'Reduced turns off animations.', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;

@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.8.0: Typing race, native iOS/Android styles, flat design rules
+
+- **Typing race** (Play → Type): 1, 3, 5 or 10-minute tests.
+  - **Solo** races your saved personal best as a ghost, plus an optional 40/60/80 wpm pacer.
+  - **Multiplayer** is 2–4 players taking turns on one device. Everyone who has already typed races live beside you as a ghost, and the results end with a podium and a replay of the whole race.
+  - Racers are original, round little animals with small running legs (chick, bunny, kitty, frog, bear, penguin, piggy); tap one to change.
+  - Typed letters flip into place in 3D and mistakes shake. A smooth caret glides between letters, blinks when idle, and lines scroll softly (ideas from Monkeytype's smooth caret and line scroll).
+  - A 3-2-1-Go countdown, live wpm, accuracy and combo, a once-per-race **Dash** (Enter) that skips a word (inspired by Nitro Type's nitro), and synthesized sounds for keys, misses, words, combos, the countdown and the finish.
+  - Results show wpm, accuracy, raw speed, words, errors, best combo, characters and a speed-over-time chart. Personal bests are saved per test length.
+  - Scoring is a tested, pure module (`src/core/typing.ts`).
+- **Android style (Material 3).** Android devices get Material 3 automatically:
+  - tonal surfaces and Roboto;
+  - a full-width navigation bar with a pill indicator, a flat top app bar and a navigation drawer;
+  - filled-tonal, outlined and text buttons, segmented buttons with a check, underline tabs and filter chips;
+  - the M3 switch, filled text fields, 28px dialogs and bottom sheets, snackbars and touch ripples.
+  
+  iPhone, iPad and Mac keep the iOS look. **Settings → Appearance → Style** (Automatic / iOS / Android) lets anyone switch.
+- **Flat design rules, everywhere:**
+  - **No gradients.** This covers backgrounds, glass, cards, podium, card backs, race water and the scanner line. The only pattern left is the striped "unmarked" fill in charts, which keeps that state readable without colour.
+  - **Minimal shadows.** Only layers that float above content have one soft shadow: the tab bar, sheets, dialogs, toasts and the swipe card.
+  - **Every line is 0.5px.** Lines are drawn as 0.5px inset hairlines, because Chromium and Android round a `0.5px` CSS border up to 1px. Decorative borders were removed, and selection is shown with tinted fills instead of thick outlines.
+- **Audited controls.** An automated check covered every button, chip, tab, tile, card, field and dialog, on iOS and Android, light and dark, phone and desktop. It confirms:
+  - equal left/right and top/bottom padding;
+  - text and icons centred;
+  - one height per control type;
+  - 0.5px lines only, no gradients, and no overlaps.
+  
+  To get there, the org outline indents with margin instead of padding, and the account button is now just your avatar (your name is in the sidebar).
+- **Cuter characters.** "Q" the duckling is redrawn with chibi proportions: a big head, glossy eyes and softer wings. It moves with gentle breathing, blinks and a head tilt. The race ducks get bigger, glossier eyes and softer blush.
+
 ## 0.7.0: Color Rush, mascot and layout polish
 
 - **Color Rush** (Play → Rush): an original colour-matching card game for you and 1–3 computer players, named from the Participants list. Match the colour or symbol, use Skip, Flip (reverse), +2 and wilds, and tap *Last card!* before someone catches you (you can catch them too). Cards deal in, fly from hand or seat to the pile, the pile you can draw from bobs when you have no match, the direction arrow turns, and the winner gets confetti. Each colour also has its own shape (circle, triangle, square, diamond), so it never relies on colour alone. The rules live in a pure, unit-tested module (`src/core/rush.ts`); 60 simulated computer-only games always finish without losing a card. The old *Cards* tab is now *Pick*.

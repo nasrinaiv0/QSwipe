@@ -64,9 +64,10 @@ const WAVE = 'M9.6 41.2Q12.6 40.1 15.6 41.2T21.6 41.2T27.6 41.2T33.6 41.2T39.6 4
 export function duckSvg(look: DuckLook, o: { waterline?: boolean; label?: string } = {}): string {
   const c = COLOR_META[look.color];
   const head = c.head ?? c.body;
+  // Big glossy eyes with two highlights read as friendlier at small sizes.
   const eye = c.dark
-    ? '<circle cx="47.6" cy="14" r="2.5" fill="#fff"/><circle cx="48" cy="14" r="1.5" fill="#111"/>'
-    : '<circle cx="47.6" cy="14" r="2.1" fill="#1d1d1f"/><circle cx="48.3" cy="13.3" r=".7" fill="#fff"/>';
+    ? '<ellipse cx="47.6" cy="14" rx="2.9" ry="3.2" fill="#fff"/><ellipse cx="48" cy="14.2" rx="1.9" ry="2.2" fill="#111"/><circle cx="48.7" cy="13.3" r=".7" fill="#fff"/>'
+    : '<ellipse cx="47.6" cy="14" rx="2.5" ry="2.9" fill="#26262c"/><circle cx="48.5" cy="13" r=".95" fill="#fff"/><circle cx="46.9" cy="15.2" r=".45" fill="#fff" opacity=".85"/>';
   const shine = look.color === 'gold' ? '<path d="M14 30C19 25 27 24 33 25" stroke="#fff6c4" stroke-width="2" fill="none" opacity=".9" stroke-linecap="round"/>' : '';
   return `<svg viewBox="0 -14 68 70" ${o.label ? `role="img" aria-label="${o.label}"` : 'aria-hidden="true"'} focusable="false">
     <path d="${TAIL}" fill="${c.wing}"/>
@@ -79,7 +80,7 @@ export function duckSvg(look: DuckLook, o: { waterline?: boolean; label?: string
     <path d="M23.5 34.2C27 33 31 33 34.5 34.2" stroke="#000" stroke-opacity=".12" stroke-width="1" fill="none"/>
     <path d="M52.5 15.5C57 14.4 62 15.4 64 17.6 62.4 19.9 58 21.6 52.5 21Z" fill="${c.beak}"/>
     <path d="M53 18.7C57 18.9 60 18.7 63.6 17.9" stroke="#000" stroke-opacity=".22" stroke-width=".8" fill="none"/>
-    <circle cx="45" cy="21" r="2" fill="#ff8fa3" opacity="${c.dark ? 0.25 : 0.35}"/>
+    <ellipse cx="45.2" cy="20.6" rx="2.7" ry="1.8" fill="#ff9eb1" opacity="${c.dark ? 0.3 : 0.5}"/>
     ${eye}${NECKS[look.neck]}${EYES[look.eyes]}${HATS[look.hat]}
     ${o.waterline ? `<path d="${BELLY}" fill="#1c86b0" opacity=".42"/><path d="${WAVE}" stroke="#fff" stroke-width="1.1" opacity=".75" fill="none" stroke-linecap="round"/>` : ''}
   </svg>`;
