@@ -4,6 +4,7 @@ import { createWorkspace, PRESETS } from '../core/model';
 import type { Level, Preset } from '../core/types';
 import * as S from '../state/store';
 import { $, $$, esc, icon, toast } from '../ui/kit';
+import { mascot } from '../ui/mascot';
 import { field, options, type View } from './common';
 
 let preset: Preset = 'business';
@@ -23,19 +24,19 @@ export const welcome: View = {
     const back = S.hasWorkspace();
     return `<div class="onboard-inner page-enter">
       <div class="between">
-        <div class="onboard-brand"><img src="./brand.svg" alt=""><div><strong>QSwipe</strong><small>Attendance, commitments and team onboarding</small></div></div>
+        <div class="onboard-brand">${mascot('hi', { size: 64 })}<div><strong>QSwipe</strong><small>Attendance, commitments and team onboarding</small></div></div>
         ${back ? `<a class="btn ghost" href="#/today">${icon('chevronLeft')}Back to ${esc(S.cfg().name)}</a>` : ''}
       </div>
       <div class="onboard-grid">
         <section class="card" aria-labelledby="create-h">
-          <div class="card-head"><div><h2 id="create-h">${icon('building')}Create a workspace</h2><p class="sub">For a team leader, manager or organization owner.</p></div></div>
+          <div class="card-head"><div><h2 id="create-h">Create a workspace</h2></div></div>
           <form class="stack" id="create-form" autocomplete="off" novalidate>
             ${field({ id: 'ws-name', label: 'Workspace name', control: '<input class="input" id="ws-name" required minlength="2" maxlength="60" placeholder="e.g. your company, school or office">' })}
-            <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong><small>${esc(PRESETS[k].titles.slice().reverse().join(' → '))}</small></button>`).join('')}</div><span class="hint">Sets default titles and labels. You can rename everything later.</span></div>
+            <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong><small>${esc(PRESETS[k].titles.slice().reverse().join(' → '))}</small></button>`).join('')}</div></div>
             <div class="form-grid">
               ${field({ id: 'owner-name', label: 'Your name', control: '<input class="input" id="owner-name" required minlength="2" maxlength="60" autocomplete="name">' })}
               ${field({ id: 'owner-level', label: 'Your role', control: `<select class="select" id="owner-level">${roleOptions(1)}</select>` })}
-              ${field({ id: 'owner-branch', label: branchLabel(1), cls: 'span-2', control: '<input class="input" id="owner-branch" maxlength="40" placeholder="Optional">', hint: 'Shown on invites, e.g. “Join Orion”.' })}
+              ${field({ id: 'owner-branch', label: branchLabel(1), cls: 'span-2', control: '<input class="input" id="owner-branch" maxlength="40" placeholder="Optional">', })}
             </div>
             <p class="form-error" id="create-error" role="alert"></p>
             <button class="btn primary lg block" type="submit">${icon('arrowRight')}Create workspace</button>
@@ -43,11 +44,10 @@ export const welcome: View = {
         </section>
         <div class="stack">
           <section class="card" aria-labelledby="join-h">
-            <div class="card-head"><div><h2 id="join-h">${icon('scan')}Join the team</h2><p class="sub">Your leader shows a “Join my team” QR code.</p></div></div>
-            <div class="steps" style="margin-bottom:14px"><div class="step"><span>Scan their invite with your camera</span></div><div class="step"><span>Enter your name</span></div><div class="step"><span>Show your confirmation code back to them</span></div></div>
+            <div class="card-head"><div><h2 id="join-h">Join the team</h2><p class="sub">Scan your leader's invite QR</p></div></div>
             <button class="btn primary block" type="button" data-action="join-team">${icon('camera')}Scan invite QR</button>
           </section>
-          <p class="privacy-note">${icon('shield')}<span>Everything is stored only in this browser. There is no account and no server; QR codes move details between devices. Export a backup from Settings → Data.</span></p>
+          <p class="privacy-note">${icon('shield')}<span>Stored only in this browser. No account, no server.</span></p>
         </div>
       </div>
     </div>`;

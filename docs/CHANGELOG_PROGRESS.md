@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.8.0: Typing race, native iOS/Android styles, flat design rules
+
+- **Typing race** (Play → Type): 1, 3, 5 or 10-minute tests.
+  - **Solo** races your saved personal best as a ghost, plus an optional 40/60/80 wpm pacer.
+  - **Multiplayer** is 2–4 players taking turns on one device. Everyone who has already typed races live beside you as a ghost, and the results end with a podium and a replay of the whole race.
+  - Racers are original, round little animals with small running legs (chick, bunny, kitty, frog, bear, penguin, piggy); tap one to change.
+  - Typed letters flip into place in 3D and mistakes shake. A smooth caret glides between letters, blinks when idle, and lines scroll softly (ideas from Monkeytype's smooth caret and line scroll).
+  - A 3-2-1-Go countdown, live wpm, accuracy and combo, a once-per-race **Dash** (Enter) that skips a word (inspired by Nitro Type's nitro), and synthesized sounds for keys, misses, words, combos, the countdown and the finish.
+  - Results show wpm, accuracy, raw speed, words, errors, best combo, characters and a speed-over-time chart. Personal bests are saved per test length.
+  - Scoring is a tested, pure module (`src/core/typing.ts`).
+- **Android style (Material 3).** Android devices get Material 3 automatically:
+  - tonal surfaces and Roboto;
+  - a full-width navigation bar with a pill indicator, a flat top app bar and a navigation drawer;
+  - filled-tonal, outlined and text buttons, segmented buttons with a check, underline tabs and filter chips;
+  - the M3 switch, filled text fields, 28px dialogs and bottom sheets, snackbars and touch ripples.
+  
+  iPhone, iPad and Mac keep the iOS look. **Settings → Appearance → Style** (Automatic / iOS / Android) lets anyone switch.
+- **Flat design rules, everywhere:**
+  - **No gradients.** This covers backgrounds, glass, cards, podium, card backs, race water and the scanner line. The only pattern left is the striped "unmarked" fill in charts, which keeps that state readable without colour.
+  - **Minimal shadows.** Only layers that float above content have one soft shadow: the tab bar, sheets, dialogs, toasts and the swipe card.
+  - **Every line is 0.5px.** Lines are drawn as 0.5px inset hairlines, because Chromium and Android round a `0.5px` CSS border up to 1px. Decorative borders were removed, and selection is shown with tinted fills instead of thick outlines.
+- **Audited controls.** An automated check covered every button, chip, tab, tile, card, field and dialog, on iOS and Android, light and dark, phone and desktop. It confirms:
+  - equal left/right and top/bottom padding;
+  - text and icons centred;
+  - one height per control type;
+  - 0.5px lines only, no gradients, and no overlaps.
+  
+  To get there, the org outline indents with margin instead of padding, and the account button is now just your avatar (your name is in the sidebar).
+- **Cuter characters.** "Q" the duckling is redrawn with chibi proportions: a big head, glossy eyes and softer wings. It moves with gentle breathing, blinks and a head tilt. The race ducks get bigger, glossier eyes and softer blush.
+
+## 0.7.0: Color Rush, mascot and layout polish
+
+- **Color Rush** (Play → Rush): an original colour-matching card game for you and 1–3 computer players, named from the Participants list. Match the colour or symbol, use Skip, Flip (reverse), +2 and wilds, and tap *Last card!* before someone catches you (you can catch them too). Cards deal in, fly from hand or seat to the pile, the pile you can draw from bobs when you have no match, the direction arrow turns, and the winner gets confetti. Each colour also has its own shape (circle, triangle, square, diamond), so it never relies on colour alone. The rules live in a pure, unit-tested module (`src/core/rush.ts`); 60 simulated computer-only games always finish without losing a card. The old *Cards* tab is now *Pick*.
+- **Mascot.** “Q”, an original duck in the accent-coloured scarf, appears in empty states, locked panels, onboarding, the *All caught up* card and game results, with moods (waving, happy, thinking, sleeping, cheering, oops) and gentle blink, wave and hop animations that stop under reduced motion.
+- **No overlaps.** An automated check of every page and dialog at 320, 390 and 1366px now finds no overlapping elements, no off-centre text in buttons and chips, and nothing hidden behind the floating tab bar. To get there:
+  - Cards waiting behind the top attendance card are blank, and that card's tags moved below the name.
+  - Org-chart expand/collapse buttons sit below their card instead of on its edge.
+  - Dialogs use one horizontal inset for header, body and footer.
+- **Consistent type.** Inter is bundled (SF Pro is still used on Apple devices), so text metrics and centring match on Windows, Android and Linux.
+- **More direct.** The Today tiles are tappable: Team opens the people list; Present, Absent and Unmarked open Attendance already filtered.
+
+## 0.6.0: iOS 27-style design
+
+- **Liquid Glass on the navigation layer only.** The sidebar, top bar, tab bar, sheets, toasts, tooltips and floating controls use a glass material: tinted body, darkened rim, bright specular edge and soft shadow, as in iOS 27's refined Liquid Glass. Content stays on solid grouped surfaces so text remains easy to read. Only layers that content scrolls under use a live blur.
+- **Glass setting.** Settings → Appearance → Glass offers Clear, Regular and Tinted, mirroring iOS 27's intensity control. *Reduce transparency* and *Increase contrast* system settings make glass opaque automatically.
+- **Navigation.** Floating capsule tab bar on phones with a lens-style selected tab and a soft scroll-edge fade. The top bar is clear at rest; once content scrolls under it, it becomes a uniform glass bar showing the page title. The desktop sidebar floats as a rounded glass panel with accent-tinted icons.
+- **Large titles and system type.** Pages open with iOS-style large titles. The font stack prefers SF Pro (with SF Pro Rounded for numbers) and falls back to the platform UI font.
+- **Controls.** Capsule buttons (filled, tinted, gray, plain) with a quick press and spring release; capsule segmented controls with a raised thumb; iOS switches whose knob stretches while pressed; filled text fields and capsule search fields; circular avatars; red notification badges.
+- **Lists and surfaces.** iOS grouped palette (light `#f2f2f7`, dark true black with `#1c1c1e` cards), borderless rounded cards, separators inset to the text, settings sections with coloured glyph tiles, sheets that float inset from the screen edges with large corners.
+- **Interactions.** Segmented controls and the tab bar slide their selection to the new choice with a spring. On phones, sheets follow your finger when dragged by the grabber or header: pull down far or fast to close, otherwise they spring back. Keyboard-shortcut hints are hidden on touch screens.
+- **Colour.** Accents use iOS system hues, darkened where needed so white text keeps at least 4.5:1 contrast. Dark mode uses the bright iOS green, teal and orange with dark text. Chart colours keep their colour-vision-safe values.
+
+## 0.5.0: Minimalist UI and mobile fixes
+
+- **One size scale.** Buttons, inputs, tabs and chips share three heights (30/36/44px; 34/40/46px on touch screens) with consistent padding and radius. Buttons no longer glow; cards are flat with hairline borders; backgrounds are plain.
+- **Less text.** Page headers are a title plus one short line; section titles drop their icons and captions; long hints and explanations are shortened or removed. Today is a greeting, a check-in card, four numbers, compact availability buttons, updates and a small attendance chart.
+- **Mobile fixes.** Full-width bottom sheets (wide dialogs left a 32px gap); close buttons no longer get squeezed; header actions stay on one row (secondary actions become icons); tab bars and filter chips no longer get cut off or wrap; roster/reply rows show compact status icons; report charts keep readable text and the register drops optional columns; the race shows full names (tap a name to cheer) and puts the game above the participant list; inputs use 16px text to stop iOS zoom; keyboard hints hide on touch; links in sheets are no longer underlined; settings sections use a 3-column grid.
+- **Fixes.** Org-chart expand/collapse toggles sit under their own card. The app no longer writes unchanged state to storage when the page is hidden, which could overwrite newer data saved by another tab.
+
+## 0.4.0: Duck race water and outfits
+
+- **Water.** The race now runs on a canvas pond: layered flowing ripples, a drifting light sheen, twinkling glints, V-shaped wakes, expanding rings, start and finish splashes, red/white lane-rope floats and a checkered finish band. Light and dark themes. Static layers are cached, and quality adapts automatically on slow devices.
+- **Ducks and costumes.** Original SVG ducks in 10 colours with 11 hats, 6 eyewear and 5 neckwear options (plus none). Tap a duck on the dock to dress it up, use *Save & next* to work through the line-up, or *Surprise outfits*. Looks are saved per participant name in the workspace (validated on load and import, capped at 200). Unsaved racers get distinct default colours.
+- **Race flow.** 3-2-1-GO countdown, ducks bob and lean into their speed, live positions, a podium with each winner's duck, and a ★ “cheer for” pick that reports where your duck finished. Reduced motion skips straight to the result.
+
 ## 0.3.0: TypeScript rebuild, hierarchy access, settings, QR onboarding
 
 **Breaking.** Storage moved to `qswipe-v3`; data from the 0.1 demo is not migrated (it was sample data). The `public/*.js` demo and `server.mjs` are removed in favour of Vite.

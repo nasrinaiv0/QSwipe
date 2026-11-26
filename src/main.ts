@@ -1,10 +1,12 @@
+import '@fontsource-variable/inter/wght.css';
 import './styles.css';
+import { installRipple } from './ui/ripple';
 import { bus } from './bus';
 import { isoDate } from './core/model';
 import { handleCode } from './qr/flows';
 import { actions as shellActions, applyAppearance, commandPalette, PAGES, renderShell, shortcutsDialog } from './shell';
 import * as S from './state/store';
-import { $, animateMeters, closeDialog, countUp, hideTooltip, toast, withTransition } from './ui/kit';
+import { $, animateMeters, closeDialog, countUp, hideTooltip, slideFrom, toast, withTransition } from './ui/kit';
 import { attendance } from './views/attendance';
 import { commitments } from './views/commitments';
 import { previewBanner, type Handler, type View } from './views/common';
@@ -155,6 +157,24 @@ document.addEventListener('keydown', e => {
   if (current?.onKey?.(e)) e.preventDefault();
 });
 
+// Segmented controls: remember where the thumb was, then slide it to the new choice once the view has updated
+// (synchronously for in-place refreshes, a few frames later after a view transition).
+document.addEventListener('click', e => {
+  const btn = (e.target as Element | null)?.closest?.('.seg button');
+  const seg = btn?.parentElement;
+  const SEL = '[aria-pressed="true"], [aria-selected="true"]';
+  const old = seg?.querySelector(SEL);
+  if (!btn || !seg || !old || old === btn) return;
+  const index = [...document.querySelectorAll('.seg')].indexOf(seg), prev = old.getBoundingClientRect();
+  let tries = 0;
+  const check = () => {
+    const now = document.querySelectorAll('.seg')[index]?.querySelector(SEL);
+    if (now && now !== old && now.isConnected) slideFrom(prev, now);
+    else if (++tries < 12) requestAnimationFrame(check);
+  };
+  requestAnimationFrame(check);
+}, true);
+
 window.addEventListener('hashchange', onRoute);
 window.addEventListener('scroll', () => $('#topbar')?.classList.toggle('scrolled', window.scrollY > 4), { passive: true });
 window.addEventListener('storage', e => { if (e.key === 'qswipe-v3') { S.load(); applyAppearance(); refresh({ shell: true }); } });
@@ -167,4 +187,5 @@ document.addEventListener('qswipe:storage-error', () => toast('This browser coul
 
 S.load();
 applyAppearance();
+installRipple();
 onRoute();

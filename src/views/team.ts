@@ -7,7 +7,7 @@ import { expiry, openJoinScanner, openTeamScanner, showInvite, showMyJoinCode } 
 import * as S from '../state/store';
 import { startPreview } from '../shell';
 import { $, $$, avatar, closeDialog, commitPill, confirmDialog, dialogShell, emptyState, esc, icon, levelChip, openDialog, photoFromFile, plural, statusPill, toast } from '../ui/kit';
-import { field, options, pageHead, type View } from './common';
+import { cbtn, field, options, pageHead, type View } from './common';
 
 const TABS: [string, string][] = [['chart', 'Org chart'], ['people', 'People'], ['invites', 'Invites']];
 
@@ -35,17 +35,17 @@ function node(p: Person): string {
   const s = canSeeStatus(p) ? statusOf(S.records(S.session.today)[p.id]) ?? null : undefined;
   const kids = directReports(S.org(), p.id);
   return `<button class="org-node ${p.id === me.id ? 'is-me' : ''} ${inScope ? 'in-scope' : ''} ${selected ? 'selected' : ''}" type="button" data-action="org-select" data-id="${p.id}" data-name="${esc(`${p.name} ${p.position} ${p.branch}`.toLowerCase())}" aria-pressed="${selected}">
-    ${p.id === me.id ? '<span class="you">YOU</span>' : ''}${avatar(p, 'sm', s === undefined ? {} : { status: s })}
-    <span class="grow"><strong>${esc(p.name)}</strong><small>${esc(p.level > 0 ? (p.branch || S.levelTitle(p.level)) : (p.position || S.levelTitle(0)))}${kids.length ? ` · ${kids.length}` : ''}</small></span></button>`;
+    ${avatar(p, 'sm', s === undefined ? {} : { status: s })}
+    <span class="grow"><strong>${p.id === me.id ? '<span class="you">You</span>' : ''}${esc(p.name)}</strong><small>${esc(p.level > 0 ? (p.branch || S.levelTitle(p.level)) : (p.position || S.levelTitle(0)))}${kids.length ? ` · ${kids.length}` : ''}</small></span></button>`;
 }
 
 function tree(p: Person): string {
   const kids = directReports(S.org(), p.id);
   const collapsed = S.session.ui.orgCollapsed.has(p.id);
   const leafList = kids.length && kids.every(k => !directReports(S.org(), k.id).length && k.level === 0);
-  return `<li class="${kids.length ? 'has-children' : ''} ${collapsed ? 'collapsed' : ''}">${node(p)}
-    ${kids.length ? `<button class="org-toggle" type="button" data-action="org-toggle" data-id="${p.id}" aria-label="${collapsed ? 'Expand' : 'Collapse'} ${esc(p.name)}'s branch" aria-expanded="${!collapsed}">${collapsed ? kids.length : '−'}</button>
-    <ul class="${leafList ? 'members' : ''}">${kids.map(tree).join('')}</ul>` : ''}</li>`;
+  const toggle = kids.length ? `<button class="org-toggle" type="button" data-action="org-toggle" data-id="${p.id}" aria-label="${collapsed ? 'Expand' : 'Collapse'} ${esc(p.name)}'s branch" aria-expanded="${!collapsed}">${collapsed ? kids.length : '−'}</button>` : '';
+  return `<li class="${kids.length ? 'has-children' : ''} ${collapsed ? 'collapsed' : ''}"><div class="org-item">${node(p)}${toggle}</div>
+    ${kids.length ? `<ul class="${leafList ? 'members' : ''}">${kids.map(tree).join('')}</ul>` : ''}</li>`;
 }
 
 function outline(): string {
@@ -85,10 +85,11 @@ function detail(p: Person): string {
 
 function accessCard(): string {
   const me = S.me(), w = S.ws();
-  return `<section class="card"><div class="card-head"><h2>${icon('shield')}Your access</h2>${levelChip(me, S.cfg().titles)}</div><div class="access-list">${FEATURES.map(f => {
+  const allowed = FEATURES.filter(f => canAccess(w, me, f.key)).length;
+  return `<details class="card disclosure"><summary class="card-head"><h2>Your access</h2><span class="cluster">${levelChip(me, S.cfg().titles)}<span class="pill">${allowed}/${FEATURES.length}</span>${icon('chevronDown', 'chev')}</span></summary><div class="access-list">${FEATURES.map(f => {
     const ok = canAccess(w, me, f.key), need = f.ownerOnly ? 'Owner only' : S.levelTitle(requiredLevel(w.policy, f.key));
     return `<div class="access-item ${ok ? 'yes' : 'no'}">${icon(ok ? 'check' : 'lock')}<span>${esc(f.label)}</span>${ok ? '' : `<span class="req pill outline">${esc(need)}</span>`}</div>`;
-  }).join('')}</div>${S.can('settings.access') ? `<a class="btn sm block" href="#/settings/access" style="margin-top:12px">${icon('settings')}Edit access policy</a>` : ''}</section>`;
+  }).join('')}</div>${S.can('settings.access') ? `<a class="btn sm block" href="#/settings/access" style="margin-top:12px">${icon('settings')}Edit policy</a>` : ''}</details>`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,14 +109,14 @@ function peopleTable(): string {
 
 function invitesTab(): string {
   const me = S.me(), w = S.ws();
-  const joinCard = `<section class="card"><div class="card-head"><div><h2>${icon('scan')}Join the team</h2><p class="sub">Joining someone else's team? Scan the invite on their screen.</p></div></div>
-    <div class="cluster"><button class="btn primary" type="button" data-action="join-team">${icon('camera')}Scan invite</button>${w.link ? `<button class="btn" type="button" data-action="show-join-code">${icon('userPlus')}My join confirmation</button>` : ''}</div></section>`;
+  const joinCard = `<section class="card"><div class="card-head"><h2>Join the team</h2></div>
+    <div class="cluster"><button class="btn primary" type="button" data-action="join-team">${icon('camera')}Scan invite</button>${w.link ? `<button class="btn" type="button" data-action="show-join-code">${icon('userPlus')}My confirmation</button>` : ''}</div></section>`;
   if (!S.can('people.manage')) return `<div class="grid two">${joinCard}<section class="card">${emptyState({ icon: 'lock', title: 'Inviting is for leaders', body: `${S.levelTitle(requiredLevel(w.policy, 'people.manage'))} and above can show a “Join my team” code.` })}</section></div>`;
   const branches = managerCandidates(0);
   const first = branches[0] ?? me;
   const list = w.invites.filter(i => S.isOwner(me) || i.parentId === me.id || isDescendant(S.org(), me.id, i.parentId));
   return `<div class="grid main-side">
-    <section class="card"><div class="card-head"><div><h2>${icon('qr')}Join my team</h2><p class="sub">Create an invite QR. People scan it, then show you a confirmation code to finish.</p></div></div>
+    <section class="card"><div class="card-head"><h2>Join my team</h2></div>
       <form class="form-grid" id="invite-form" data-submit="invite-create">
         ${field({ id: 'inv-parent', label: 'Joins under', control: `<select class="select" id="inv-parent" data-change="inv-parent">${options(branches.map(p => [p.id, label(p)]), first.id)}</select>` })}
         ${field({ id: 'inv-level', label: 'As', control: `<select class="select" id="inv-level">${levelOptions(first.level, 0)}</select>` })}
@@ -124,7 +125,7 @@ function invitesTab(): string {
         <div class="span-2"><button class="btn primary block" type="submit">${icon('qr')}Show invite QR</button></div>
       </form></section>
     <div class="stack loose">${joinCard}
-      <section class="card"><div class="card-head"><h2>${icon('history')}Invites</h2><button class="btn sm" type="button" data-action="scan">${icon('scan')}Scan confirmation</button></div>
+      <section class="card"><div class="card-head"><h2>Invites</h2><button class="btn sm" type="button" data-action="scan">${icon('scan')}Scan</button></div>
         ${list.length ? list.map(i => {
           const st = inviteState(i), parent = S.org().byId.get(i.parentId);
           return `<div class="invite-row"><span><strong>${esc(parent?.branch || parent?.name || 'Removed branch')} · ${esc(S.levelTitle(i.level))}</strong><small>${st === 'active' ? `Expires ${esc(expiry(i.expiresAt))}` : st} · ${i.uses}/${i.maxUses} joined</small></span>
@@ -158,7 +159,7 @@ function personDialog(o: { id?: string; parentId?: string }) {
     </div><p class="form-error" id="pp-error" role="alert"></p></form>`;
   openDialog({
     label: editing ? 'Edit person' : 'Add person', className: 'wide',
-    html: dialogShell({ title: editing ? `Edit ${editing.name}` : 'Add a person', sub: editing ? 'Changes are recorded in the audit log.' : 'People added here have no check-in pass. Use “Join my team” for QR onboarding.', body, foot: `<button class="btn ghost" type="button" data-action="dialog-close">Cancel</button><button class="btn primary" type="submit" form="person-form">${editing ? 'Save' : 'Add person'}</button>` }),
+    html: dialogShell({ title: editing ? `Edit ${editing.name}` : 'Add a person', sub: editing ? '' : 'No check-in pass · use Join my team for QR', body, foot: `<button class="btn ghost" type="button" data-action="dialog-close">Cancel</button><button class="btn primary" type="submit" form="person-form">${editing ? 'Save' : 'Add person'}</button>` }),
     onOpen: d => {
       const levelSel = $<HTMLSelectElement>('#pp-level', d), parentSel = $<HTMLSelectElement>('#pp-parent', d), branchField = $('#pp-branch', d)!.closest<HTMLElement>('.field')!;
       const sync = () => {
@@ -222,9 +223,9 @@ export const team: View = {
     const w = S.ws(), me = S.me();
     const active = w.invites.filter(i => inviteState(i) === 'active').length;
     const selected = S.org().byId.get(S.session.ui.orgSelected ?? '') ?? me;
-    const head = pageHead({ title: 'Team', lede: `${plural(w.people.length, 'person', 'people')} · ${S.scopeLabel()}${w.link ? ' · Your copy of this workspace only includes people you have scanned or added' : ''}`, actions: `
-      <button class="btn sm" type="button" data-action="scan">${icon('scan')}Scan QR</button>
-      ${S.can('people.manage') ? `<button class="btn sm" type="button" data-action="person-add" data-parent="${me.id}">${icon('plus')}Add person</button><button class="btn sm primary" type="button" data-action="invite-quick" data-parent="${me.id}">${icon('qr')}Join my team</button>` : `<button class="btn sm primary" type="button" data-action="join-team">${icon('camera')}Join the team</button>`}` });
+    const head = pageHead({ title: 'Team', lede: plural(w.people.length, 'person', 'people'), actions: `
+      ${cbtn({ label: 'Scan QR', icon: 'scan', action: 'scan' })}
+      ${S.can('people.manage') ? `${cbtn({ label: 'Add person', icon: 'plus', action: 'person-add', attrs: `data-parent="${me.id}"` })}<button class="btn primary" type="button" data-action="invite-quick" data-parent="${me.id}">${icon('qr')}Join my team</button>` : `<button class="btn primary" type="button" data-action="join-team">${icon('camera')}Join the team</button>`}` });
     const tabs = `<div class="seg" role="tablist" aria-label="Team views" style="margin-bottom:var(--gap)">${TABS.map(([id, l]) => `<button type="button" role="tab" data-action="team-tab" data-tab="${id}" aria-selected="${tab === id}">${l}${id === 'invites' && active ? ` <span class="count">${active}</span>` : ''}</button>`).join('')}</div>`;
     if (tab === 'people') return `${head}${tabs}${peopleTable()}`;
     if (tab === 'invites') return `${head}${tabs}${invitesTab()}`;

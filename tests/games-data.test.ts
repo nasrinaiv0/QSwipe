@@ -62,6 +62,12 @@ describe('storage and backups', () => {
   it('settings accept only listed values', () => {
     expect(sanitizeSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.density).toBe('compact');
+    expect(DEFAULT_SETTINGS.glass).toBe('regular');
+    expect(sanitizeSettings({ glass: 'tinted' }).glass).toBe('tinted');
+    expect(sanitizeSettings({ glass: 'frosted' }).glass).toBe('regular');
+    expect(DEFAULT_SETTINGS.platform).toBe('auto');
+    expect(sanitizeSettings({ platform: 'android' }).platform).toBe('android');
+    expect(sanitizeSettings({ platform: 'windows' }).platform).toBe('auto');
     const s = sanitizeSettings({ theme: 'dark', accent: 'neon', undoSeconds: 30, sound: 'yes' });
     expect(s).toMatchObject({ theme: 'dark', accent: 'green', undoSeconds: 30, sound: false });
     expect(swipeThreshold('quick')).toBeLessThan(swipeThreshold('gentle'));

@@ -130,7 +130,7 @@ export function joinFromInvite(code: InviteCode, member: { name: string; positio
   const me = newPerson({ name, level: code.l, parentId: parent.id, position: member.position ?? '', joined: 'invite', passKey: randomToken(), createdAt: now });
   const ws: Workspace = {
     id: code.w, createdAt: now, config: expandConfig(code.c), ownerId: parent.id, meId: me.id, people: [parent, me], policy: defaultPolicy(),
-    attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [], invites: [], trivia: [], gameEntries: '',
+    attendance: {}, commitments: {}, announcements: [], acked: {}, audit: [], invites: [], trivia: [], gameEntries: '', ducks: {},
     link: { inviteId: code.i, token: code.t, joinedAt: now },
   };
   return { ws, receipt: receiptFor(ws, me) };

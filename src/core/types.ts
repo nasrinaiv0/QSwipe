@@ -1,3 +1,5 @@
+import type { DuckLook } from './ducks';
+
 export type Level = 0 | 1 | 2 | 3;
 export type Status = 'present' | 'absent';
 export type Commitment = 'confirmed' | 'risk' | 'unavailable';
@@ -103,6 +105,8 @@ export interface Workspace {
   invites: Invite[];
   trivia: TriviaQuestion[];
   gameEntries: string;
+  /** Duck race looks keyed by participant name (lower-case). */
+  ducks: Record<string, DuckLook>;
   link?: JoinLink;
 }
 
@@ -112,6 +116,9 @@ export interface Settings {
   density: 'compact' | 'comfortable';
   textSize: 'default' | 'large';
   motion: 'system' | 'full' | 'reduced';
+  glass: 'regular' | 'clear' | 'tinted';
+  /** Design language: follow the device, or force the iOS or Android (Material 3) look. */
+  platform: 'auto' | 'ios' | 'android';
   undoSeconds: 5 | 10 | 30;
   swipeSensitivity: 'gentle' | 'balanced' | 'quick';
   triviaTimer: 0 | 15 | 30;
@@ -126,6 +133,8 @@ export interface AppData {
   workspaces: Record<string, Workspace>;
   settings: Settings;
   triviaBest: number;
+  /** Typing race personal bests on this device, per test length in seconds. */
+  typing: import('./typing').TypingBests;
 }
 
 export interface Org {
