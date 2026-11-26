@@ -17,3 +17,142 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+
+  team-play-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run build
+      - name: Install pinned browser harness
+        id: browser_setup
+        run: npm install --prefix "$RUNNER_TEMP/qswipe-browser" --no-audit --no-fund playwright@1.56.1
+      - name: Team Play browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/team-play.mjs
+      - name: Live rooms and memory synchronization browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/live-rooms.mjs
+      - name: Player collection browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/player-collection.mjs
+      - name: Seasonal games browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/seasonal-games.mjs
+      - name: Creative games and animation performance browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/creative-games.mjs
+      - name: Consolidation and room lifecycle browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/consolidation.mjs
+      - name: Shared attendance and unified passport browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/shared-attendance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-shared-attendance-previews
+          path: shared-attendance-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-consolidation-previews
+          path: consolidation-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-team-play-previews
+          path: team-play-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-live-room-previews
+          path: live-room-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-player-collection-previews
+          path: collection-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-seasonal-previews
+          path: seasonal-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qswipe-creative-previews
+          path: creative-previews/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
+  room-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: fictional-ci
+          POSTGRES_DB: qswipe_rooms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d qswipe_rooms_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGPASSWORD: fictional-ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate review-only room snapshot on disposable PostgreSQL
+        run: |
+          psql -h 127.0.0.1 -U postgres -d qswipe_rooms_test -v ON_ERROR_STOP=1 -c 'create role anon; create role authenticated;'
+          psql -h 127.0.0.1 -U postgres -d qswipe_rooms_test -v ON_ERROR_STOP=1 -f supabase/staging/room_snapshot.sql
+          psql -h 127.0.0.1 -U postgres -d qswipe_rooms_test -v ON_ERROR_STOP=1 -f test/postgres/room_snapshot_assertions.sql

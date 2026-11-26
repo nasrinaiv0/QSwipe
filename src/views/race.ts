@@ -9,7 +9,7 @@ import { Pond, type PondDuck } from '../ui/pond';
 
 type Phase = 'idle' | 'countdown' | 'racing' | 'done';
 type Slot = keyof DuckLook;
-export interface RaceHooks { entries(): string[]; onFinish(winner: string): void; needMore(title: string, body: string): string; resultActions(): string }
+export interface RaceHooks { entries(): string[]; active(): boolean; scope(): string; onFinish(winner: string): void; needMore(title: string, body: string): string; resultActions(): string }
 
 /** Waterline (y = 41 in the duck's -14…56 viewBox) as a fraction of the duck's height. */
 const WATERLINE = 55 / 70;
@@ -75,7 +75,7 @@ export function createRace(h: RaceHooks) {
 
   function start() {
     const names = h.entries();
-    if (names.length < 2 || busy()) return;
+    if (!h.active() || names.length < 2 || busy()) return;
     const winner = rollIndex(names.length);
     const finish = raceFinishTimes(names.length, winner);
     Object.assign(r, {
@@ -88,6 +88,7 @@ export function createRace(h: RaceHooks) {
   }
 
   function finishRace() {
+    if (!h.active() || !busy()) { reset(); return; }
     r.phase = 'done';
     h.onFinish(r.names[r.winner]!);
     haptic([20, 40, 20]);
@@ -97,7 +98,9 @@ export function createRace(h: RaceHooks) {
     bus.refresh();
   }
 
-  function reset() {
+  function reset(clearScope = false) {
+    stopLoop();
+    if (clearScope) { r.backed = null; r.names = []; r.finish = []; r.shapes = []; r.wobble = []; }
     r.phase = 'idle';
     r.winner = -1;
     r.order = [];
@@ -118,6 +121,7 @@ export function createRace(h: RaceHooks) {
   /* ---------------------------------------------------------------- */
 
   function frame(t: number, once = false) {
+    if (!h.active() || scene.ducks.some(d => !d.isConnected)) { stopLoop(); return; }
     if (!once) scene.raf = requestAnimationFrame(tt => frame(tt));
     const pond = scene.pond;
     if (!pond || !scene.visible || document.hidden) return;
@@ -181,6 +185,7 @@ export function createRace(h: RaceHooks) {
     stopLoop();
     const water = $('#pond-water', root);
     if (!water) return;
+    scene.visible = true;
     scene.ducks = $$('.pond-duck', water);
     scene.prevX = [];
     scene.count = '';
@@ -205,7 +210,7 @@ export function createRace(h: RaceHooks) {
   /* ---------------------------------------------------------------- */
 
   function lookDialog(index: number) {
-    const names = h.entries(), name = names[index];
+    const names = h.entries(), name = names[index], scope = h.scope();
     if (!name || busy()) return;
     let look: DuckLook = { ...raceLooks(names, S.ws().ducks)[index]! };
     let slot: Slot = 'color';
@@ -247,10 +252,10 @@ export function createRace(h: RaceHooks) {
             redraw(slot === 'color');
           }
         });
-        const save = () => { S.setDuckLook(name, look); closeDialog(true); bus.refresh(); };
+        const save = () => { if (!h.active() || h.scope() !== scope || !h.entries().includes(name)) { closeDialog(true); return false; } S.setDuckLook(name, look); closeDialog(true); bus.refresh(); return true; };
         $('#look-random', d)!.addEventListener('click', () => { look = randomLook(rollIndex); redraw(true); });
-        $('#look-save', d)!.addEventListener('click', () => { save(); toast(`${name} is ready to race`, { icon: 'check' }); });
-        $('#look-next', d)?.addEventListener('click', () => { save(); lookDialog(next); });
+        $('#look-save', d)!.addEventListener('click', () => { if (save()) toast(`${name} is ready to race`, { icon: 'check' }); });
+        $('#look-next', d)?.addEventListener('click', () => { if (save()) lookDialog(next); });
         $<HTMLElement>('.look-opt[aria-checked="true"]', d)?.focus();
       },
     });

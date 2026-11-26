@@ -2,12 +2,13 @@
 
 Attendance, commitments, team hierarchy and QR team onboarding: a local-first web app written in strict TypeScript.
 
-> **Scope.** This repository is an independent app and is **not** the source of the privately hosted QSwipe site. Merging here does not deploy or change that site. Data lives only in the browser that created it: there is no server, account system or shared database.
+> **Scope.** This repository is an independent app and is **not** the source of the privately hosted QSwipe site. Merging here does not deploy or change that site. Data lives only in the browser that created it: there is no server or shared database.
 
 ## Features
 
 | Area | What it does |
 | --- | --- |
+| **Sign-in & demo** | The app opens on a sign-in screen. The first visit creates a local account (name and password, hashed with PBKDF2-SHA256 through WebCrypto); later visits ask for the password, with an optional *Keep me signed in*. **Try the demo** opens a sample workspace kept in session storage, apart from real data, and **Exit demo** discards it. A join QR opened before sign-in waits until the person signs in. |
 | **Workspaces** | Create one or more workspaces from a terminology template (business, school, government, custom). Every label, title, shift and session day is editable. Nothing is pre-filled: no sample people, records or questions. |
 | **Hierarchy & access** | Four levels (e.g. Member → Team Leader → Manager → Director). People act only inside their own branch. A per-workspace access matrix sets the minimum level for each feature; the owner can do everything and can **preview the app as anyone**. |
 | **QR onboarding** | **Join my team**: a leader shows an invite QR (expiry and use limits). **Join the team**: a new member scans it with the camera, enters their name, and shows a confirmation QR back. The leader scans it to add them. No server is involved. |
@@ -17,6 +18,7 @@ Attendance, commitments, team hierarchy and QR team onboarding: a local-first we
 | **Reports** | Attendance rate with trend vs. previous period, completion, absences, perfect attendance, a daily stacked chart with tooltips, per-branch rates, audit log, sortable register and CSV export (formula-injection safe). |
 | **Updates** | Announcements scoped to a branch or the whole workspace, importance flag, acknowledgements with read counts. |
 | **Play** | Crypto-fair wheel; a **duck race** on animated canvas water (ripples, glints, wakes, splashes, lane ropes) where every racer can pick a duck colour and a costume (hat, eyewear, neckwear), saved per name, plus a 3-2-1 start and a “cheer for” pick; pick-a-card; **Color Rush**, an original colour-matching card game against 1–3 computer players (skip, flip, +2, wilds, “last card!” calls and catches); a **typing race** (1/3/5/10 minutes, solo against your best and a pacer, or 2–4 players taking turns with live ghost racing and a replay); and trivia from the team's own question bank plus generated math. |
+| **Account vs Settings** | The avatar opens **Account**: *Profile* (my profile, check-in pass), *Workspace* (switch, preview as…) and *Session* (sign out or exit the demo). The gear opens **Settings**. On phones, **More** groups *Pages*, *Tools* and *Settings*. |
 | **Settings** | Theme (system/light/dark), accent, compact/comfortable density, text size, motion, undo window, swipe sensitivity, haptics, sounds, workspace schedule and labels, access matrix, JSON backup export/import, clear/delete. |
 
 Also: command palette (`Ctrl/⌘ K`), keyboard shortcuts (`?`), responsive layout from 320 px with an icon rail and mobile tab bar, view transitions, and reduced-motion support.
@@ -37,7 +39,8 @@ Camera scanning needs a secure context (`https://` or `localhost`). Without a ca
 ## Project layout
 
 ```
-src/core/      pure domain logic: model (hierarchy, policy, attendance, reports), codes (QR payloads), games, data (validation)
+src/core/      pure domain logic: model (hierarchy, policy, attendance, reports), codes (QR payloads), games, typing, data (validation),
+               account (local sign-in) and demo (the only sample data, used by Try the demo)
 src/state/     store: persisted AppData, session state, permission-checked mutations
 src/ui/        kit, icons, duck artwork (duck-art.ts) and the canvas water engine (pond.ts)
 src/qr/        QR rendering, camera scanner (BarcodeDetector, lazy jsQR fallback), join/check-in flows
@@ -56,4 +59,4 @@ Every endpoint returns `503 STAGING_DISABLED` unless it runs in a Vercel preview
 
 ## Before real-world use
 
-QSwipe stores personal data (names, attendance) in browser storage, and its QR handshake has no central authority. Read [docs/RELEASE_GATES.md](docs/RELEASE_GATES.md) before using it for real people.
+QSwipe stores personal data (names, attendance) in browser storage, unencrypted: the local sign-in keeps others on a shared device out of the app but does not protect the stored data, and its QR handshake has no central authority. Read [docs/RELEASE_GATES.md](docs/RELEASE_GATES.md) before using it for real people.

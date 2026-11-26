@@ -10,7 +10,7 @@ import * as S from '../state/store';
 import { $, avatar, confetti, esc, firstName, haptic, icon, reducedMotion, sound } from '../ui/kit';
 import { mascot } from '../ui/mascot';
 
-export interface RushHooks { entries(): string[]; onFinish(text: string): void }
+export interface RushHooks { entries(): string[]; active(): boolean; onFinish(text: string): void }
 type Phase = 'setup' | 'play' | 'over';
 interface Fx { sel: string; from: DOMRect }
 
@@ -40,8 +40,9 @@ export function createRush(h: RushHooks) {
   const me = () => firstName(S.me().name);
   const busy = () => r.phase === 'play';
   const stop = () => { clearTimeout(r.timer); r.timer = 0; };
+  const reset = () => { stop(); r.phase = 'setup'; r.opp = 2; r.s = null; r.picking = null; r.pickFrom = null; r.msg = ''; r.fx = []; r.deal = false; r.refocus = false; r.bump = -1; r.hit = -1; r.wins.clear(); r.seq = 0; };
   const name = (p: number) => (p === 0 ? 'You' : firstName(r.s!.players[p]!.name));
-  const person = (n: string): Person => S.ws().people.find(p => p.name.toLowerCase() === n.toLowerCase()) ?? ({ id: n, name: n } as Person);
+  const person = (n: string): Person => [S.me(), ...S.visiblePeople()].find(p => p.name.toLowerCase() === n.toLowerCase()) ?? ({ id: n, name: n } as Person);
 
   function opponents(): string[] {
     const mine = S.me().name.toLowerCase(), picked = h.entries().filter(n => n.toLowerCase() !== mine && n.toLowerCase() !== me().toLowerCase());
@@ -166,6 +167,7 @@ export function createRush(h: RushHooks) {
 
   function schedule() {
     stop();
+    if (!h.active()) return;
     const s = r.s;
     if (r.phase !== 'play' || !s || s.winner !== null) return;
     // Computer players take their turn; they also catch you if you forget to call your last card.
@@ -173,6 +175,8 @@ export function createRush(h: RushHooks) {
   }
 
   function botStep() {
+    r.timer = 0;
+    if (!h.active()) return;
     const s = r.s;
     if (!s || s.winner !== null || r.phase !== 'play') return;
     const p = s.turn;
@@ -194,6 +198,7 @@ export function createRush(h: RushHooks) {
   }
 
   function start() {
+    if (!h.active()) return;
     stop();
     r.s = newRush([S.me().name, ...opponents()].slice(0, MAX_PLAYERS));
     r.phase = 'play'; r.picking = null; r.msg = ''; r.deal = true; r.bump = -1; r.hit = -1;
@@ -265,5 +270,5 @@ export function createRush(h: RushHooks) {
     return false;
   }
 
-  return { render, mount, stop, busy, actions, onKey };
+  return { render, mount, stop, reset, busy, actions, onKey };
 }

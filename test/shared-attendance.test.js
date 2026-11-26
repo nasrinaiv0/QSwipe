@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {createRoomService} from '../lib/rooms/service.mjs';
+import {createPersistentRoomService,createFileStore} from '../lib/rooms/persistence.mjs';
+import {onlineConfig,makeOnlineHandler} from '../lib/rooms/online.mjs';
+const fixture=(s,name)=>s.command({action:'profile_create',name});
+test('attendance is independently default off and production hosting remains disabled',async()=>{
+ const s=createRoomService(),p=fixture(s,'Alex');
+ assert.throws(()=>s.command({action:'attendance_list'},p.profileCredential),{code:'ATTENDANCE_DISABLED'});
+ const env={VERCEL_ENV:'preview',QSWIPE_ROOMS_ONLINE:'true',QSWIPE_ROOMS_STAGING_REF:'a'.repeat(20),QSWIPE_ROOMS_PRODUCTION_REF:'b'.repeat(20),QSWIPE_ROOMS_SUPABASE_URL:'https://'+'a'.repeat(20)+'.supabase.co',QSWIPE_ROOMS_PUBLISHABLE_KEY:'sb_publishable_fictional12345678',QSWIPE_ROOMS_STORE_SECRET:'a'.repeat(64),QSWIPE_ROOMS_PREVIEW_ORIGIN:'https://fixture.vercel.app'};
+ assert.equal(onlineConfig(env).attendanceEnabled,false);assert.equal(onlineConfig({...env,QSWIPE_SHARED_ATTENDANCE:'true'}).attendanceEnabled,true);assert.equal(onlineConfig({...env,VERCEL_ENV:'production',QSWIPE_SHARED_ATTENDANCE:'true'}),null);
+});
+test('server calendar, frozen eligibility, role minimization and stale mark protection',()=>{
+ let t=Date.parse('2026-11-24T15:59:00Z');const s=createRoomService({now:()=>t,attendanceEnabled:true}),a=fixture(s,'Alex'),b=fixture(s,'Jamie'),c=fixture(s,'Taylor');
+ const cmd=(p,action,extra={})=>s.command({action:'attendance_'+action,...extra},p.profileCredential);
+ const team=cmd(a,'create',{name:'Orion',timezone:'Asia/Manila'}).team,teamId=team.id;
+ assert.equal(team.today,'2026-11-24');assert.throws(()=>cmd(c,'state',{teamId}),{code:'ATTENDANCE_DENIED'});
+ assert.throws(()=>s.command({action:'attendance_list'},'0'.repeat(64)),{code:'PROFILE_DENIED'});
+ assert.throws(()=>cmd(a,'create',{name:'Bad',timezone:'fake/zone'}),{code:'ATTENDANCE_TIMEZONE'});
+ assert.throws(()=>cmd(a,'list',{memberId:'forged'}),{code:'INVALID_COMMAND'});
+ const member=cmd(b,'join',{invite:team.invite}).team;assert.equal(member.owner,false);assert.equal(member.members,undefined);assert.equal(member.invite,undefined);
+ assert.throws(()=>cmd(b,'open',{teamId}),{code:'ATTENDANCE_OWNER_ONLY'});
+ const first=cmd(a,'open',{teamId}).team.sessions[0],sessionId=first.id;assert.equal(first.roster.length,2);
+ assert.equal(cmd(a,'open',{teamId}).team.sessions[0].id,sessionId);
+ const own=cmd(b,'state',{teamId}).team.sessions[0].roster;assert.equal(own.length,1);assert.equal(own[0].name,'Jamie');
+ const memberId=own[0].id;
+ assert.throws(()=>cmd(b,'mark',{teamId,sessionId,memberId:team.me,status:'present',revision:0}),{code:'ATTENDANCE_DENIED'});
+ assert.throws(()=>cmd(b,'mark',{teamId,sessionId,memberId,status:'absent',revision:0}),{code:'ATTENDANCE_DENIED'});
+ const present={teamId,sessionId,memberId,status:'present',revision:0};
+ assert.equal(cmd(b,'mark',present).team.sessions[0].roster[0].revision,1);
+ assert.equal(cmd(b,'mark',present).team.sessions[0].roster[0].revision,1);
+ assert.throws(()=>cmd(a,'mark',{...present,status:'absent'}),{code:'ATTENDANCE_CONFLICT'});
+ cmd(a,'mark',{...present,status:'absent',revision:1});
+ assert.throws(()=>cmd(b,'mark',{...present,revision:2}),{code:'ATTENDANCE_CONFLICT'});
+ assert.equal(cmd(c,'join',{invite:team.invite}).team.sessions.length,0);
+ assert.equal(cmd(a,'state',{teamId}).team.sessions[0].roster.length,2);
+ t+=120000;assert.equal(cmd(a,'state',{teamId}).team.sessions[0].open,false);
+ assert.throws(()=>cmd(a,'mark',{...present,revision:2}),{code:'ATTENDANCE_CLOSED'});
+ const next=cmd(a,'open',{teamId}).team;assert.equal(next.today,'2026-11-25');assert.equal(next.sessions[0].roster.length,3);assert.equal(next.sessions[1].roster.length,2);
+ const removed=cmd(a,'remove',{teamId,memberId}).team;assert.notEqual(removed.invite,team.invite);assert.equal(removed.sessions[0].roster.length,3);
+ assert.throws(()=>cmd(b,'state',{teamId}),{code:'ATTENDANCE_DENIED'});assert.throws(()=>cmd(b,'join',{invite:team.invite}),{code:'ATTENDANCE_DENIED'});
+ cmd(a,'close',{teamId,sessionId:next.sessions[0].id});assert.throws(()=>cmd(a,'open',{teamId}),{code:'ATTENDANCE_CLOSED'});
+ assert.equal(s.command({action:'profile_state'},a.profileCredential).profile.points,0);
+ const g=s.command({action:'create_profile',team:'jade'},a.profileCredential);assert.equal(g.state.players[0].name,'Alex');
+});
+test('persisted concurrent self check-ins and profile identity survive restart with gate off preserving data',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'qs-attendance-')),path=join(dir,'snapshot.json');let t=Date.parse('2026-11-24T01:00:00Z');
+ const options={attendanceEnabled:true,now:()=>t};let s=createPersistentRoomService(createFileStore(path),options);
+ try{
+  const [a,b,c]=await Promise.all(['Alex','Jamie','Taylor'].map(name=>fixture(s,name)));
+  const run=(p,action,extra={})=>s.command({action:'attendance_'+action,...extra},p.profileCredential);
+  const team=(await run(a,'create',{name:'Orion',timezone:'UTC'})).team,teamId=team.id;
+  await Promise.all([b,c].map(p=>run(p,'join',{invite:team.invite})));
+  const session=(await run(a,'open',{teamId})).team.sessions[0],sessionId=session.id;
+  await Promise.all([b,c].map(async p=>{const own=(await run(p,'state',{teamId})).team.me;return run(p,'mark',{teamId,sessionId,memberId:own,status:'present',revision:0});}));
+  s=createPersistentRoomService(createFileStore(path),{...options,attendanceEnabled:false});
+  await assert.rejects(()=>run(a,'state',{teamId}),{code:'ATTENDANCE_DISABLED'});
+  assert.equal((await s.command({action:'profile_state'},b.profileCredential)).profile.name,'Jamie');
+  s=createPersistentRoomService(createFileStore(path),options);
+  const after=(await run(a,'state',{teamId})).team.sessions[0];assert.equal(after.roster.filter(m=>m.status==='present').length,2);assert.equal(after.roster.filter(m=>m.status==='unmarked').length,1);
+  assert.ok(!((await readFile(path,'utf8')).includes(b.profileCredential)));
+  t+=91*86400000;const fresh=await fixture(s,'Fresh');assert.deepEqual((await run(fresh,'list')).teams,[]);
+  await assert.rejects(()=>run(a,'state',{teamId}),{code:'PROFILE_DENIED'});
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

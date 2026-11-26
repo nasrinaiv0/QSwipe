@@ -1,4 +1,5 @@
-/** Team games: wheel, duck race, pick-a-card, Color Rush, typing race and trivia (team question bank + generated math). */
+/** Team games: wheel, duck race, pick-a-card, Color Rush, typing race, trivia and the team challenge. */
+import { challengeView, challengeActions, clearChallenge } from './engagement';
 import { bus } from '../bus';
 import { buildRound, parseEntries, rollIndex, shuffled, sliceAtPointer, triviaCategories, wheelTarget, type RoundQuestion } from '../core/games';
 import * as S from '../state/store';
@@ -8,7 +9,7 @@ import { createRace } from './race';
 import { createRush } from './rush';
 import { createTyping } from './typing';
 
-const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Pick', 'cards'], ['rush', 'Rush', 'sparkles'], ['type', 'Type', 'keyboard'], ['trivia', 'Trivia', 'bulb']];
+const GAMES: [string, string, string][] = [['wheel', 'Wheel', 'wheel'], ['race', 'Race', 'flag'], ['cards', 'Pick', 'cards'], ['rush', 'Rush', 'sparkles'], ['type', 'Type', 'keyboard'], ['trivia', 'Trivia', 'bulb'], ['challenge', 'Team', 'users']];
 const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#6250d6', '#0e7470', '#c0504d'];
 
 interface Trivia { questions: RoundQuestion[]; index: number; picked: (number | null)[]; score: number; streak: number; best: number; done: boolean; deadline: number }
@@ -19,12 +20,15 @@ const g = {
   history: [] as { game: string; text: string; at: number }[],
 };
 
+let contextKey = '', lastGame = '', deckKey = '';
+const scopeKey = () => S.hasWorkspace() ? S.ws().id + ':' + S.me().id + ':' + (S.session.previewId ?? '') : '';
 const game = () => (GAMES.some(x => x[0] === S.session.route.sub) ? S.session.route.sub : 'wheel');
 const entries = () => parseEntries(S.ws().gameEntries);
 function stop() { cancelAnimationFrame(g.raf); g.running = false; }
 function record(text: string) { g.history.unshift({ game: game(), text, at: Date.now() }); g.history.length = Math.min(g.history.length, 8); }
-function resetResult() { stop(); duckRace.reset(); g.winner = null; g.revealed = -1; g.revealAll = false; }
+const activeGame = (id: string) => S.hasWorkspace() && S.session.route.page === 'play' && game() === id && scopeKey() === contextKey;
 const busy = () => g.running || duckRace.busy();
+function resetResult() { stop(); g.order = []; deckKey = ''; g.winner = null; g.revealed = -1; g.revealAll = false; duckRace.reset(); }
 
 /* ------------------------------------------------------------------ */
 /* Participants panel                                                  */
@@ -45,12 +49,14 @@ const resultActions = () => `<div class="cluster" style="justify-content:center"
 
 const duckRace = createRace({
   entries,
+  active: () => activeGame('race'),
+  scope: scopeKey,
   needMore,
   resultActions,
   onFinish: name => { g.winner = name; record(`🏆 ${name}`); },
 });
 
-const rush = createRush({ entries, onFinish: text => record(text) });
+const rush = createRush({ entries, active: () => activeGame('rush'), onFinish: text => record(text) });
 const typing = createTyping({ entries, onFinish: text => record(text) });
 
 /* ------------------------------------------------------------------ */
@@ -76,7 +82,7 @@ function wheel(): string {
           <text class="wheel-slice-label" x="250" y="250" transform="rotate(${mid - 90} 250 250) translate(${n > 12 ? 150 : 140} 0)${mid > 180 ? ' rotate(180 250 250)' : ''}" fill="${i % COLORS.length === 3 ? '#1b1b1b' : '#fff'}" font-size="${fs}" text-anchor="middle" dominant-baseline="middle">${esc(name.length > 16 ? `${name.slice(0, 15)}…` : name)}</text></g>`;
       }).join('')}</g></svg>
     <button class="wheel-hub" type="button" data-action="spin" aria-label="Spin the wheel" ${g.running ? 'disabled' : ''}><img src="./brand.svg" alt=""></button></div>
-    <div class="stage-result" role="status">${g.winner ? `<span class="eyebrow">Selected</span><span class="winner">${esc(g.winner)}</span>${resultActions()}` : `<button class="btn primary lg" type="button" data-action="spin" ${g.running ? 'disabled' : ''}>${icon('wheel')}${g.running ? 'Spinning…' : 'Spin'}</button><span class="hint keys">or press Space</span>`}</div>`;
+    <div class="stage-result" role="status">${g.winner ? `<span class="eyebrow">Selected</span><span class="winner">${esc(g.winner)}</span>${resultActions()}` : `<button class="btn primary lg" type="button" data-action="spin" ${g.running ? 'disabled' : ''}>${icon('wheel')}${g.running ? 'Spinning…' : 'Spin'}</button><span class="hint">or press Space</span>`}</div>`;
 }
 
 function spin() {
@@ -89,7 +95,9 @@ function spin() {
   const rotor = $('#rotor'), pointer = $('#pointer');
   const dur = reducedMotion() ? 1 : 4800, start = performance.now();
   let lastSlice = sliceAtPointer(from, n);
+  const startedScope = scopeKey();
   const frame = (now: number) => {
+    if (scopeKey() !== startedScope || game() !== 'wheel' || !rotor?.isConnected) { resetResult(); if(scopeKey()===startedScope && game()==='wheel') bus.refresh(); return; }
     const t = Math.min(1, (now - start) / dur), e = 1 - (1 - t) ** 4;
     g.rotation = from + (to - from) * e;
     if (rotor) rotor.style.transform = `rotate(${g.rotation}deg)`;
@@ -111,7 +119,9 @@ function spin() {
 function cards(): string {
   const names = entries();
   if (names.length < 2) return needMore('Add at least two names', 'Each name becomes a face-down card.');
-  const deck = g.order.length === names.length && g.order.every(n => names.includes(n)) ? g.order : names;
+  const key = JSON.stringify(names);
+  if (deckKey !== key) { g.order = shuffled(names); deckKey = key; }
+  const deck = g.order;
   return `<div class="card-table">${deck.slice(0, 24).map((n, i) => {
     const shown = g.revealed === i || g.revealAll;
     return `<button class="flip ${shown ? 'revealed' : ''} ${g.revealed >= 0 && !shown ? 'faded' : ''}" type="button" style="--i:${i}" data-action="flip" data-i="${i}" ${g.revealed >= 0 ? 'disabled' : ''} aria-label="${shown ? esc(n) : `Card ${i + 1}, face down`}">
@@ -130,9 +140,9 @@ function triviaSetup(): string {
     <div class="field"><span class="label">Category</span><div class="cat-chips">${cats.map(c => `<button class="chip" type="button" data-action="trivia-cat" data-cat="${esc(c)}" aria-pressed="${g.cat === c}">${esc(c)}${c !== 'Mixed' && c !== 'Math' ? ` <span class="count">${bank.filter(q => q.category === c).length}</span>` : ''}</button>`).join('')}</div></div>
     <div class="field"><span class="label">Questions</span><div class="seg">${[5, 10, 15].map(n => `<button type="button" data-action="trivia-len" data-n="${n}" aria-pressed="${g.len === n}">${n}</button>`).join('')}</div></div>
     <div class="field"><span class="label">Timer per question</span><div class="seg">${([0, 15, 30] as const).map(n => `<button type="button" data-action="trivia-timer" data-n="${n}" aria-pressed="${S.settings().triviaTimer === n}">${n ? `${n}s` : 'Off'}</button>`).join('')}</div></div>
-    ${bank.length ? '' : `<div class="notice">${icon('info')}<span>No team questions yet · math only</span></div>`}
+    ${bank.length ? '' : `<div class="notice">${icon('info')}<span>Your team's question bank is empty, so rounds use generated math questions.${canEditBank() ? ' Add your own questions to make it yours.' : ''}</span></div>`}
     <div class="cluster"><button class="btn primary lg" type="button" data-action="trivia-start">${icon('bulb')}Start round</button>${canEditBank() ? `<button class="btn" type="button" data-action="bank-open">${icon('list')}Question bank (${bank.length})</button>` : ''}</div>
-    ${S.data.triviaBest ? `<p class="hint">Best: ${S.data.triviaBest}%</p>` : ''}</div>`;
+    ${S.data.triviaBest ? `<p class="hint">Best score on this device: ${S.data.triviaBest}%</p>` : ''}</div>`;
 }
 
 function triviaPlay(t: Trivia): string {
@@ -143,7 +153,7 @@ function triviaPlay(t: Trivia): string {
     ${S.settings().triviaTimer && !answered ? '<div class="timer" id="timer"><span></span></div>' : ''}
     <h2 class="trivia-q">${esc(q.question)}</h2>
     <div class="options">${q.options.map((o, i) => `<button class="option ${answered ? (i === q.answer ? 'correct' : i === picked ? 'wrong' : 'muted-opt') : ''}" type="button" style="--i:${i}" data-action="trivia-answer" data-i="${i}" ${answered ? 'disabled' : ''}><span class="key">${i + 1}</span>${esc(o)}</button>`).join('')}</div>
-    ${answered ? `<div class="between"><span class="${picked === q.answer ? 'pill good' : 'pill bad'}">${picked === q.answer ? 'Correct!' : picked === -1 ? `Time's up · ${esc(q.options[q.answer]!)}` : `Answer: ${esc(q.options[q.answer]!)}`}</span><button class="btn primary" type="button" data-action="trivia-next">${t.index + 1 === t.questions.length ? 'See results' : 'Next'} ${icon('arrowRight')}</button></div>` : '<p class="hint keys">Press 1–4 to answer.</p>'}</div>`;
+    ${answered ? `<div class="between"><span class="${picked === q.answer ? 'pill good' : 'pill bad'}">${picked === q.answer ? 'Correct!' : picked === -1 ? `Time's up · ${esc(q.options[q.answer]!)}` : `Answer: ${esc(q.options[q.answer]!)}`}</span><button class="btn primary" type="button" data-action="trivia-next">${t.index + 1 === t.questions.length ? 'See results' : 'Next'} ${icon('arrowRight')}</button></div>` : '<p class="hint">Press 1–4 to answer.</p>'}</div>`;
 }
 
 function triviaResults(t: Trivia): string {
@@ -156,7 +166,7 @@ function triviaResults(t: Trivia): string {
 
 function answer(i: number) {
   const t = g.trivia;
-  if (!t || t.done || (t.picked[t.index] !== null && t.picked[t.index] !== undefined)) return;
+  if (!t || t.done || !Number.isInteger(i) || i < -1 || i > 3 || (t.picked[t.index] !== null && t.picked[t.index] !== undefined)) return;
   t.picked[t.index] = i;
   const ok = i === t.questions[t.index]!.answer;
   if (ok) { t.score++; t.streak++; t.best = Math.max(t.best, t.streak); sound.pop(); haptic(10); } else { t.streak = 0; sound.wrong(); haptic([30, 30, 30]); }
@@ -166,7 +176,7 @@ function answer(i: number) {
 
 function next() {
   const t = g.trivia;
-  if (!t || t.picked[t.index] === null || t.picked[t.index] === undefined) return;
+  if (!t || t.done || t.picked[t.index] === null || t.picked[t.index] === undefined) return;
   if (t.index + 1 >= t.questions.length) {
     t.done = true;
     const pct = Math.round((100 * t.score) / t.questions.length);
@@ -178,6 +188,7 @@ function next() {
 }
 
 function runTimer() {
+  cancelAnimationFrame(g.raf);
   const t = g.trivia, bar = $('#timer > span'), secs = S.settings().triviaTimer;
   if (!t || !bar || !secs) return;
   const frame = () => {
@@ -229,11 +240,14 @@ function bankDialog(editId?: string) {
 
 export const play: View = {
   render() {
-    const id = game();
+    const id = game(), key=scopeKey();
+    if(key!==contextKey || id!==lastGame){resetResult();rush.stop();g.trivia=null;clearChallenge();if(key!==contextKey){g.history=[];g.rotation=0;duckRace.reset(true);rush.reset();}contextKey=key;lastGame=id;}
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
+    const liveLink = `<nav class="cluster game-mode-nav" aria-label="Game mode"><a class="btn primary" href="#/play" aria-current="page">On this device</a><a class="btn" href="./rooms/">${icon('users')}Live rooms</a><a class="btn" href="./rooms/attendance.html">Attendance</a></nav>`;
+    if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.',actions:liveLink})}${tabs}${challengeView()}`;
     const t = g.trivia;
     const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : id === 'rush' ? rush.render() : id === 'type' ? typing.render() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
-    return `${pageHead({ title: 'Play' })}${tabs}
+    return `${pageHead({ title: 'Play', actions: liveLink })}${tabs}
       ${id === 'trivia' || id === 'rush' || id === 'type' ? `<section class="card"><div class="stage ${id}-stage">${stage}</div></section>` : `<div class="play-layout"><section class="card"><div class="stage">${stage}</div></section>${participants()}</div>`}`;
   },
   mount(root) {
@@ -242,7 +256,7 @@ export const play: View = {
     if (game() === 'type') typing.mount(root); else typing.stop();
     if (game() === 'trivia' && g.trivia && !g.trivia.done) runTimer();
   },
-  unmount() { stop(); duckRace.stop(); rush.stop(); typing.stop(); },
+  unmount() { resetResult(); duckRace.stop(); rush.stop(); typing.stop(); g.trivia = null; clearChallenge(); lastGame = ''; },
   onKey(e) {
     const id = game();
     if (id === 'rush') return rush.onKey(e);
@@ -255,6 +269,7 @@ export const play: View = {
     return false;
   },
   actions: {
+    ...challengeActions,
     'game-tab': el => { stop(); duckRace.stop(); rush.stop(); typing.stop(); resetResult(); bus.navigate('play', el.dataset.game!); },
     spin,
     ...duckRace.actions,
@@ -271,19 +286,20 @@ export const play: View = {
     'keep-entry': () => { resetResult(); bus.refresh(); },
     'remove-entry': () => { const w = g.winner; S.setGameEntries(entries().filter(n => n !== w).join('\n')); resetResult(); bus.refresh(); },
     'cards-shuffle': () => {
-      g.order = shuffled(entries()); g.revealed = -1; g.revealAll = false; g.winner = null;
+      g.order = shuffled(entries()); deckKey=JSON.stringify(entries()); g.revealed = -1; g.revealAll = false; g.winner = null;
       bus.refresh();
       $('#main')?.classList.toggle('static', false); // let the deal animation replay
     },
     'cards-reveal': () => { g.revealAll = true; bus.refresh(); },
     flip: el => {
-      const names = entries(), deck = g.order.length === names.length ? g.order : names, i = Number(el.dataset.i);
-      if (g.revealed >= 0) return;
+      const names = entries(), deck = deckKey===JSON.stringify(names)?g.order:[], i = Number(el.dataset.i);
+      if (g.revealed >= 0 || !Number.isInteger(i)||i<0||i>=deck.length) return;
       g.revealed = i; g.winner = deck[i] ?? null;
       if (g.winner) record(g.winner);
       haptic(15); sound.pop();
       el.classList.add('revealed');
-      setTimeout(() => { bus.refresh(); confetti({ count: 60 }); }, reducedMotion() ? 0 : 650);
+      const scope=scopeKey(), winner=g.winner;
+      setTimeout(() => { if(scopeKey()===scope && S.session.route.page==='play' && game()==='cards' && g.winner===winner){bus.refresh();confetti({ count: 60 });} }, reducedMotion() ? 0 : 650);
     },
     'trivia-cat': el => { g.cat = el.dataset.cat!; bus.refresh(); },
     'trivia-len': el => { g.len = Number(el.dataset.n); bus.refresh(); },
@@ -308,10 +324,11 @@ export const play: View = {
       clearTimeout((el as HTMLElement & { _t?: number })._t);
       (el as HTMLElement & { _t?: number })._t = window.setTimeout(() => {
         const stage = $('.stage');
-        if (stage && !busy()) {
+        if (stage && el.isConnected && S.session.route.page==='play' && scopeKey()===contextKey && ['wheel','race','cards'].includes(game()) && !busy()) {
           stage.innerHTML = game() === 'wheel' ? wheel() : game() === 'race' ? duckRace.render() : cards();
           if (game() === 'race') duckRace.mount(stage);
         }
+        if (!el.isConnected || scopeKey() !== contextKey) return;
         const pill = $('.entries-box .pill');
         if (pill) pill.textContent = `${entries().length} / 24`;
       }, 160);

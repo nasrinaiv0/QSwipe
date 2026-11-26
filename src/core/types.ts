@@ -89,6 +89,8 @@ export interface JoinLink {
   joinedAt: number;
 }
 
+export interface RosterSnapshot { date: string; days: number[]; people: Person[] }
+
 export interface Workspace {
   id: string;
   createdAt: number;
@@ -98,6 +100,7 @@ export interface Workspace {
   people: Person[];
   policy: Policy;
   attendance: Record<string, Record<string, AttendanceRecord>>;
+  rosterHistory?: RosterSnapshot[];
   commitments: Record<string, Record<string, CommitmentRecord>>;
   announcements: Announcement[];
   acked: Record<string, Record<string, number>>;
@@ -107,6 +110,7 @@ export interface Workspace {
   gameEntries: string;
   /** Duck race looks keyed by participant name (lower-case). */
   ducks: Record<string, DuckLook>;
+  playScores?: import('./engagement').PlayScore[];
   link?: JoinLink;
 }
 
@@ -135,6 +139,8 @@ export interface AppData {
   triviaBest: number;
   /** Typing race personal bests on this device, per test length in seconds. */
   typing: import('./typing').TypingBests;
+  /** Local sign-in for this device (see core/account.ts); absent until someone creates an account. */
+  account?: import('./account').LocalAccount;
 }
 
 export interface Org {

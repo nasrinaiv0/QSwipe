@@ -1,6 +1,10 @@
+import { initializeHistory, recordRosterChange, recordSameDayEligibility } from '../core/history';
+import { addScore, type PlayScore } from '../core/engagement';
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
 import { emptyAppData, sanitizeAppData, sanitizeSettings, STORAGE_KEY } from '../core/data';
+import { createAccount, verifyPassword } from '../core/account';
+import { createDemoData } from '../core/demo';
 import { duckKey, MAX_SAVED_LOOKS, sanitizeLook, type DuckLook } from '../core/ducks';
 import { sanitizeQuestion } from '../core/games';
 import * as M from '../core/model';
@@ -39,8 +43,64 @@ export const session: Session = {
 /* Persistence                                                         */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Sign-in and demo mode                                               */
+/* ------------------------------------------------------------------ */
+// Real data lives in localStorage. The demo lives in sessionStorage under its own key, so sample data never mixes
+// with real records and disappears when the tab closes or the person taps "Exit demo".
+const DEMO_KEY = 'qswipe-demo-v3', MODE_KEY = 'qswipe-mode', AUTH_KEY = 'qswipe-auth';
+const safe = <T>(fn: () => T, fallback: T): T => { try { return fn(); } catch { return fallback; } };
+/** Moves to the app's start page without a second render from a hashchange event. */
+export function goHome() {
+  const page = hasWorkspace() ? 'today' : 'welcome';
+  session.route = { page, sub: '' };
+  history.replaceState(null, '', `#/${page}`);
+}
+export const isDemo = () => safe(() => sessionStorage.getItem(MODE_KEY) === 'demo', false);
+const store = () => (isDemo() ? sessionStorage : localStorage);
+const key = () => (isDemo() ? DEMO_KEY : STORAGE_KEY);
+const realAccount = () => safe(() => sanitizeAppData(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).account, undefined);
+export const account = () => (isDemo() ? undefined : data.account);
+export const hasAccount = () => !!realAccount();
+/** Signed in for this tab, or on this device when "Keep me signed in" was chosen. */
+export const isSignedIn = () => isDemo() || safe(() => sessionStorage.getItem(AUTH_KEY) === '1' || localStorage.getItem(AUTH_KEY) === '1', false);
+
+export async function signUp(name: string, password: string, remember: boolean) {
+  const acct = await createAccount(name, password);
+  data.account = acct;
+  flush(true);
+  markSignedIn(remember);
+}
+export async function signIn(password: string, remember: boolean): Promise<boolean> {
+  const acct = realAccount();
+  if (!acct || !(await verifyPassword(acct, password))) return false;
+  markSignedIn(remember);
+  return true;
+}
+function markSignedIn(remember: boolean) {
+  safe(() => { sessionStorage.setItem(AUTH_KEY, '1'); if (remember) localStorage.setItem(AUTH_KEY, '1'); }, undefined);
+}
+export function signOut() {
+  flush();
+  safe(() => { sessionStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_KEY); }, undefined);
+}
+export function startDemo() {
+  flush();
+  safe(() => { sessionStorage.setItem(MODE_KEY, 'demo'); sessionStorage.setItem(DEMO_KEY, JSON.stringify({ ...createDemoData(), settings: data.settings })); }, undefined);
+  load();
+}
+export function endDemo() {
+  safe(() => { sessionStorage.removeItem(MODE_KEY); sessionStorage.removeItem(DEMO_KEY); }, undefined);
+  load();
+}
+/** Forgotten password on a local account: the only recovery is erasing this device's QSwipe data. */
+export function eraseDevice() {
+  safe(() => { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(AUTH_KEY); sessionStorage.clear(); }, undefined);
+  data = emptyAppData();
+}
+
 export function load(): void {
-  try { data = sanitizeAppData(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')); } catch { data = emptyAppData(); }
+  try { data = sanitizeAppData(JSON.parse(store().getItem(key()) ?? 'null')); } catch { data = emptyAppData(); }
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -51,12 +111,12 @@ export function flush(force = false): boolean {
   clearTimeout(timer);
   if (!dirty && !force) return true;
   dirty = false;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch {
+  try { store().setItem(key(), JSON.stringify(data)); return true; } catch {
     document.dispatchEvent(new CustomEvent('qswipe:storage-error'));
     return false;
   }
 }
-export const storageBytes = () => new Blob([localStorage.getItem(STORAGE_KEY) ?? '']).size;
+export const storageBytes = () => new Blob([store().getItem(key()) ?? '']).size;
 
 /* ------------------------------------------------------------------ */
 /* Selectors                                                           */
@@ -125,6 +185,7 @@ function resetSession() {
 }
 
 export function addWorkspace(w: Workspace): void {
+  initializeHistory(w, session.today);
   data.workspaces[w.id] = w;
   data.activeId = w.id;
   resetSession();
@@ -180,6 +241,7 @@ export function mark(subjectId: string, status: Status, via: 'swipe' | 'pass' | 
   const decision = M.markDecision({ ws: ws(), org: o, actor: me(), subject, records: records(date), date, today: session.today });
   if (!decision.ok) return { ok: false, error: markError(decision.reason, subject), reason: decision.reason };
   const w = ws();
+  recordSameDayEligibility(w, subject!, date, session.today);
   (w.attendance[date] ??= {})[subjectId] = { s: status, at: Date.now(), by: me().id, via: decision.reason === 'self' ? 'self' : via };
   session.lastAction = { id: subjectId, status, at: Date.now(), date };
   audit({ kind: 'mark', subject: subjectId, from: null, to: status, date });
@@ -241,7 +303,9 @@ export function addPerson(input: PersonInput): Result<{ person: Person }> {
   const error = M.placementError(org(), { level: input.level, parentId: input.parentId });
   if (error) return { ok: false, error };
   const person = M.newPerson({ ...input, photo: input.photo ?? undefined, joined: 'manual' });
+  initializeHistory(ws(), session.today);
   ws().people = [...ws().people, person];
+  recordRosterChange(ws(), session.today);
   audit({ kind: 'add', subject: person.id, from: null, to: null });
   persist();
   return { ok: true, person };
@@ -264,7 +328,9 @@ export function updatePerson(id: string, input: PersonInput): Result {
   }
   const updated: Person = { ...current, name: M.cleanText(input.name, 60), position: M.cleanText(input.position, 60), level: input.level, parentId: input.parentId, branch: input.level > 0 ? M.cleanText(input.branch, 40) : '' };
   if (input.photo === null) delete updated.photo; else if (input.photo) updated.photo = input.photo;
+  initializeHistory(w, session.today);
   w.people = w.people.map(p => (p.id === id ? updated : p));
+  recordRosterChange(w, session.today);
   if (placementChanged) audit({ kind: 'move', subject: id, from: null, to: null });
   persist();
   return { ok: true };
@@ -273,14 +339,16 @@ export function updatePerson(id: string, input: PersonInput): Result {
 export function removePerson(id: string): Result<{ snapshot: Person[] }> {
   if (!M.canManagePerson(ws(), org(), me(), id)) return { ok: false, error: 'You can only remove people in your branch.' };
   const snapshot = ws().people;
+  initializeHistory(ws(), session.today);
   ws().people = M.removeFromOrg(snapshot, id);
+  recordRosterChange(ws(), session.today);
   audit({ kind: 'remove', subject: id, from: null, to: null });
   if (session.ui.orgSelected === id) session.ui.orgSelected = null;
   persist();
   return { ok: true, snapshot };
 }
 
-export function restorePeople(snapshot: Person[]) { ws().people = snapshot; persist(); }
+export function restorePeople(snapshot: Person[]) { initializeHistory(ws(), session.today); ws().people = snapshot; recordRosterChange(ws(), session.today); persist(); }
 
 export function newInvite(parentId: string, level: Level, hours: number, maxUses: number): Result<{ invite: Invite }> {
   if (!(parentId === me().id ? can('people.manage') : M.canManagePerson(ws(), org(), me(), parentId))) return { ok: false, error: 'You can only invite people into your own branch.' };
@@ -307,7 +375,9 @@ export function joinWithInvite(code: InviteCode, member: { name: string; positio
       const { receipt } = joinFromInvite(code, member);
       switchWorkspace(existing.id);
       const accepted = acceptReceipt(existing, receipt);
+      initializeHistory(existing, session.today);
       existing.people = [...existing.people, accepted.person];
+      recordRosterChange(existing, session.today);
       accepted.invite.uses++;
       audit({ kind: 'join', subject: accepted.person.id, from: null, to: null });
       persist();
@@ -329,7 +399,9 @@ export function acceptJoin(r: ReceiptCode): Result<{ person: Person }> {
   try {
     const { person, invite } = acceptReceipt(target, r);
     if (!(invite.parentId === me().id ? can('people.manage') : M.canManagePerson(target, org(), me(), invite.parentId))) return { ok: false, error: 'Only someone above that branch can confirm this join.' };
+    initializeHistory(target, session.today);
     target.people = [...target.people, person];
+    recordRosterChange(target, session.today);
     invite.uses++;
     audit({ kind: 'join', subject: person.id, from: null, to: null });
     persist();
@@ -425,7 +497,9 @@ export function resetPolicy() { if (can('settings.access')) { ws().policy = M.de
 
 export function updateConfig(patch: Partial<WorkspaceConfig>): boolean {
   if (!can('settings.workspace')) return false;
+  initializeHistory(ws(), session.today);
   ws().config = M.sanitizeConfig({ ...ws().config, ...patch }, ws().config);
+  recordRosterChange(ws(), session.today);
   persist();
   return true;
 }
@@ -442,6 +516,13 @@ export function setDuckLook(name: string, look: DuckLook): boolean {
   return true;
 }
 
+export function recordPlayScores(scores: PlayScore[]): number {
+  if (session.previewId) return 0;
+  const allowed=new Set([me(),...visiblePeople()].map(p=>p.id));
+  let ledger=ws().playScores??[],count=0;
+  for(const score of scores){if(!allowed.has(score.playerId))continue;const next=addScore(ledger,score,ws().people,M.isoDate());if(next){ledger=next;count++;}}
+  if(count){ws().playScores=ledger;persist();flush();}return count;
+}
 export function setGameEntries(text: string) { ws().gameEntries = text.slice(0, 2000); persist(); }
 export function setTriviaBest(pct: number) { if (pct > data.triviaBest) { data.triviaBest = pct; persist(); } }
 /** Saves a typing result if it beats the stored best for that test length; returns true for a new personal best. */

@@ -55,6 +55,7 @@ export function renderShell() {
       <button class="search-btn" type="button" data-action="open-palette" aria-label="Search and commands (${modKey} K)">${icon('search')}<span class="label-text">Search…</span><kbd>${modKey} K</kbd></button>
       <button class="icon-btn" type="button" data-action="scan" aria-label="Scan a QR code" title="Scan QR">${icon('scan')}</button>
       <button class="icon-btn theme-toggle" type="button" data-action="toggle-theme" aria-label="Switch to ${dark ? 'light' : 'dark'} theme">${icon(dark ? 'sun' : 'moon')}</button>
+      <a class="icon-btn settings-btn" href="#/settings" aria-label="Settings" title="Settings">${icon('settings')}</a>
       <button class="me-btn" type="button" data-action="open-account" aria-label="Account: ${esc(me.name)}" title="${esc(me.name)}">${avatar(me, 'sm', { round: true })}</button>
     </div>`;
   const moreActive = !TABBAR.includes(page.id), moreBadge = S.unreadCount();
@@ -117,19 +118,24 @@ function workspaceMenu() {
 function accountMenu() {
   const me = S.self(), w = S.ws(), reports = descendants(S.org(), me.id).length;
   const previewable = S.canPreview() ? S.ws().people.filter(p => p.id !== me.id) : [];
+  const row = (o: { href?: string; action?: string; ic: string; title: string; sub?: string; tail?: string; danger?: boolean }) =>
+    `<${o.href ? `a href="${o.href}" data-action="dialog-close-link"` : `button type="button" data-action="${o.action}"`} class="picker-item ${o.danger ? 'danger' : ''}">${icon(o.ic)}<span class="grow"><strong>${esc(o.title)}</strong>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</span>${o.tail ?? ''}</${o.href ? 'a' : 'button'}>`;
+  const profile = [
+    `<a class="picker-item profile-row" href="#/team/${me.id}" data-action="dialog-close-link">${avatar(me, 'lg', { round: true })}<span class="grow"><strong>My profile</strong><small>${esc(S.levelTitle(me.level))}${S.branchName(me) ? ` · ${esc(S.branchName(me))}` : ''}${reports ? ` · manages ${plural(reports, 'person', 'people')}` : ''}</small></span>${icon('chevronRight')}</a>`,
+    me.passKey ? row({ action: 'show-pass', ic: 'qr', title: 'My check-in pass', sub: 'Show to be marked present' }) : '',
+    w.link ? row({ action: 'show-join-code', ic: 'userPlus', title: 'My join confirmation', sub: "Show again if it wasn't scanned" }) : '',
+  ].join('');
+  const workspace = [
+    row({ action: 'open-workspaces', ic: 'building', title: 'Switch workspace', sub: w.config.name, tail: icon('chevrons') }),
+    previewable.length ? row({ action: 'open-preview', ic: 'eye', title: 'Preview as…', sub: "See another level's view" }) : '',
+  ].join('');
+  const session = S.isDemo() ? row({ action: 'demo-exit', ic: 'logout', title: 'Exit demo', sub: 'Sample data is discarded', danger: true })
+    : S.account() ? row({ action: 'sign-out', ic: 'logout', title: 'Sign out', sub: S.account()!.name, danger: true }) : '';
   openDialog({
     label: 'Account',
     html: dialogShell({
-      title: me.name,
-      sub: `${S.levelTitle(me.level)}${S.branchName(me) ? ` · ${S.branchName(me)}` : ''}${S.isOwner(me) ? ' · Workspace owner' : ''}`,
-      body: `<div class="picker-list">
-        <a class="picker-item" href="#/team/${me.id}" data-action="dialog-close-link">${avatar(me, 'sm', { round: true })}<span class="grow"><strong>My profile</strong><small>${reports ? `Manages ${plural(reports, 'person', 'people')}` : 'Name, position and photo'}</small></span>${icon('chevronRight')}</a>
-        ${me.passKey ? `<button class="picker-item" type="button" data-action="show-pass">${icon('qr')}<span class="grow"><strong>My check-in pass</strong><small>Show to be marked present today</small></span></button>` : ''}
-        ${w.link ? `<button class="picker-item" type="button" data-action="show-join-code">${icon('userPlus')}<span class="grow"><strong>My join confirmation</strong><small>Show again if your leader hasn't scanned it</small></span></button>` : ''}
-        ${previewable.length ? `<button class="picker-item" type="button" data-action="open-preview">${icon('eye')}<span class="grow"><strong>Preview as…</strong><small>See the app with someone else's level and branch</small></span></button>` : ''}
-        <button class="picker-item" type="button" data-action="open-workspaces">${icon('building')}<span class="grow"><strong>Switch workspace</strong><small>${esc(w.config.name)}</small></span>${icon('chevrons')}</button>
-        <a class="picker-item" href="#/settings" data-action="dialog-close-link">${icon('settings')}<span class="grow"><strong>Settings</strong></span></a>
-      </div>`,
+      title: 'Account',
+      body: `<div class="picker-list"><div class="picker-group">Profile</div>${profile}<div class="picker-group">Workspace</div>${workspace}${session ? `<div class="picker-group">Session</div>${session}` : ''}</div>`,
     }),
   });
 }
@@ -156,15 +162,19 @@ export function previewMenu() {
 
 function moreSheet() {
   const extra = PAGES.filter(p => !TABBAR.includes(p.id));
+  const item = (p: Page) => `<a class="picker-item" href="#/${p.id}" data-action="dialog-close-link">${icon(p.icon)}<span class="grow"><strong>${p.label}</strong>${isLocked(p) ? '<small>Locked for your level</small>' : ''}</span>${badgeFor(p.id) ? `<span class="badge">${badgeFor(p.id)}</span>` : ''}${isLocked(p) ? icon('lock') : icon('chevronRight')}</a>`;
+  const pages = extra.filter(p => p.id !== 'settings'), settings = extra.find(p => p.id === 'settings');
   openDialog({
     label: 'More',
     html: dialogShell({
       title: 'More',
-      body: `<div class="picker-list">${extra.map(p => `<a class="picker-item" href="#/${p.id}" data-action="dialog-close-link">${icon(p.icon)}<span class="grow"><strong>${p.label}</strong>${isLocked(p) ? '<small>Locked for your level</small>' : ''}</span>${badgeFor(p.id) ? `<span class="badge">${badgeFor(p.id)}</span>` : ''}${isLocked(p) ? icon('lock') : icon('chevronRight')}</a>`).join('')}
-        <div class="divider"></div>
-        <button class="picker-item" type="button" data-action="scan">${icon('scan')}<span class="grow"><strong>Scan QR</strong><small>Invites, join confirmations, check-in passes</small></span></button>
-        <button class="picker-item" type="button" data-action="open-workspaces">${icon('building')}<span class="grow"><strong>${esc(S.cfg().name)}</strong><small>Switch workspace</small></span>${icon('chevrons')}</button>
-        <button class="picker-item" type="button" data-action="toggle-theme">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}<span class="grow"><strong>Toggle theme</strong></span></button></div>`,
+      body: `<div class="picker-list">
+        <div class="picker-group">Pages</div>${pages.map(item).join('')}
+        <div class="picker-group">Tools</div>
+        <button class="picker-item" type="button" data-action="scan">${icon('scan')}<span class="grow"><strong>Scan QR</strong><small>Invites, confirmations, passes</small></span></button>
+        <button class="picker-item" type="button" data-action="toggle-theme">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon')}<span class="grow"><strong>${document.documentElement.dataset.theme === 'dark' ? 'Light mode' : 'Dark mode'}</strong></span></button>
+        <div class="picker-group">Settings</div>${settings ? item(settings) : ''}
+        <button class="picker-item" type="button" data-action="open-account">${avatar(S.self(), 'sm', { round: true })}<span class="grow"><strong>Account</strong><small>Profile, workspace, sign out</small></span>${icon('chevronRight')}</button></div>`,
     }),
   });
 }
@@ -268,6 +278,8 @@ export const actions: Record<string, (el: HTMLElement) => void> = {
   'open-preview': previewMenu,
   'open-palette': commandPalette,
   'open-more': moreSheet,
+  'sign-out': () => { closeDialog(true); S.signOut(); S.goHome(); bus.refresh({ animate: true }); },
+  'demo-exit': () => { closeDialog(true); S.endDemo(); S.goHome(); bus.refresh({ animate: true }); },
   'open-shortcuts': shortcutsDialog,
   'toggle-theme': () => { closeDialog(true); toggleTheme(); },
   'pick-workspace': el => switchTo(el.dataset.id!),

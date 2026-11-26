@@ -1,3 +1,4 @@
+import { engagementSummary } from './engagement';
 import { bus } from '../bus';
 import { attendanceRate, commitmentOf, dailySeries, relativeTime, rosterStats, sessionDates, shiftLabel, statusOf } from '../core/model';
 import type { Commitment } from '../core/types';
@@ -79,6 +80,7 @@ export const today: View = {
       ${hero}
       ${kpis}
       <div class="grid two reveal">
+        ${engagementSummary()}
         ${checklist()}
         <section class="card"><div class="card-head"><div><h2>Next session</h2><p class="sub">${esc(fmtDate(next))}</p></div><a class="btn sm ghost" href="#/commitments">Plan ${icon('arrowRight')}</a></div>${choiceGrid(next)}</section>
         <section class="card"><div class="card-head"><h2>Updates ${unread ? `<span class="badge">${unread}</span>` : ''}</h2><a class="btn sm ghost" href="#/updates">All ${icon('arrowRight')}</a></div>
