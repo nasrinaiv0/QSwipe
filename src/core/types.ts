@@ -139,6 +139,8 @@ export interface AppData {
   triviaBest: number;
   /** Typing race personal bests on this device, per test length in seconds. */
   typing: import('./typing').TypingBests;
+  /** Local sign-in for this device (see core/account.ts); absent until someone creates an account. */
+  account?: import('./account').LocalAccount;
 }
 
 export interface Org {

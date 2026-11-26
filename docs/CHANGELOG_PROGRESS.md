@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0: Sign-in, demo mode, organised Account and Settings
+
+- **Sign-in before the app.** The first visit creates a local account (name and password, at least 6 characters); later visits ask for the password. Passwords are hashed with PBKDF2-SHA256 (210,000 iterations, random salt) through WebCrypto and compared in constant time. *Keep me signed in* is optional; otherwise the session ends with the tab. *Forgot password?* can only erase this device, because the account never leaves it.
+- **Try the demo.** The sign-in screen offers a demo workspace (9 people, 10 days of attendance, commitments, updates, a trivia question). It lives in session storage, never touches real data, shows a *Demo · sample data* banner, and **Exit demo** discards it. This is now the only place sample data exists.
+- **Join links wait for sign-in.** A join QR opened on a fresh device shows *Create your account to join the team*, then completes the join after sign-up. The demo never accepts it.
+- **Account and Settings are separate.**
+  - The top bar has its own Settings (gear) button beside the avatar.
+  - The avatar opens **Account**, grouped into *Profile* (my profile, check-in pass), *Workspace* (switch workspace, preview as…) and *Session* (sign out or exit the demo).
+  - On phones, **More** is grouped into *Pages*, *Tools* (scan QR, light/dark) and *Settings* (Settings, Account).
+- **Team play and live rooms follow the flat rules.** The team-challenge styles and the live-rooms stylesheet (`public/rooms/room.css`) now use 0.5px hairlines instead of 1–3px borders, tint fills for selection instead of outlines, and flat colours instead of gradient patterns. Keyboard focus rings stay.
+
 ## 0.8.0: Typing race, native iOS/Android styles, flat design rules
 
 - **Typing race** (Play → Type): 1, 3, 5 or 10-minute tests.

@@ -1,6 +1,6 @@
 {
   "name": "qswipe",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "QSwipe — attendance, commitments, team hierarchy and QR team onboarding. Local-first TypeScript web app.",

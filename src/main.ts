@@ -6,7 +6,7 @@ import { isoDate } from './core/model';
 import { handleCode } from './qr/flows';
 import { actions as shellActions, applyAppearance, commandPalette, PAGES, renderShell, shortcutsDialog } from './shell';
 import * as S from './state/store';
-import { $, animateMeters, closeDialog, countUp, hideTooltip, slideFrom, toast, withTransition } from './ui/kit';
+import { $, animateMeters, closeDialog, countUp, hideTooltip, icon, slideFrom, toast, withTransition } from './ui/kit';
 import { attendance } from './views/attendance';
 import { commitments } from './views/commitments';
 import { previewBanner, type Handler, type View } from './views/common';
@@ -17,8 +17,9 @@ import { team } from './views/team';
 import { today } from './views/today';
 import { updates } from './views/updates';
 import { welcome } from './views/welcome';
+import { signin } from './views/signin';
 
-const VIEWS: Record<string, View> = { today, attendance, commitments, reports, team, updates, play, settings: settingsView, welcome };
+const VIEWS: Record<string, View> = { today, attendance, commitments, reports, team, updates, play, settings: settingsView, welcome, signin };
 const ACTIONS: Record<string, Handler> = { ...shellActions };
 const INPUTS: Record<string, Handler> = {};
 for (const v of Object.values(VIEWS)) { Object.assign(ACTIONS, v.actions); Object.assign(INPUTS, v.inputs); }
@@ -35,13 +36,21 @@ function parseHash(): { page: string; sub: string } {
   return { page, sub: rest.join('/') };
 }
 
+/** A code opened from a phone camera before sign-in waits here until the person signs in (never applied to the demo). */
+let pendingCode = '';
+
+function runCode(code: string) {
+  void handleCode(code).then(out => { if (out.result === 'retry') toast(out.message, { icon: 'alert', duration: 5000 }); });
+}
+
 function onRoute() {
   const { page, sub } = parseHash();
   if (page === 'qr' && sub) {
     // Opened from a phone camera: route the code, then land on a normal page.
     history.replaceState(null, '', S.hasWorkspace() ? '#/today' : '#/welcome');
+    if (!S.isSignedIn()) pendingCode = sub;
     render(true);
-    void handleCode(sub).then(out => { if (out.result === 'retry') toast(out.message, { icon: 'alert', duration: 5000 }); });
+    if (S.isSignedIn()) runCode(sub);
     return;
   }
   const known = page === 'welcome' || PAGES.some(p => p.id === page);
@@ -59,6 +68,23 @@ export function navigate(page: string, sub = '') {
 /* ------------------------------------------------------------------ */
 
 function paint(animate: boolean) {
+  if (!S.isSignedIn()) {
+    // Sign in (or try the demo) before anything else opens.
+    current?.unmount?.();
+    current = signin;
+    app.hidden = true;
+    onboard.hidden = false;
+    main.replaceChildren();
+    onboard.innerHTML = signin.render(pendingCode ? 'join' : '');
+    signin.mount?.(onboard, { initial: true });
+    document.title = 'Sign in · QSwipe';
+    return;
+  }
+  if (pendingCode) {
+    const code = pendingCode;
+    pendingCode = '';
+    if (!S.isDemo()) queueMicrotask(() => runCode(code));
+  }
   const onboarding = !S.hasWorkspace() || S.session.route.page === 'welcome';
   const view = onboarding ? welcome : VIEWS[S.session.route.page] ?? today;
   if (current !== view) current?.unmount?.();
@@ -76,7 +102,7 @@ function paint(animate: boolean) {
   onboard.replaceChildren();
   renderShell();
   main.classList.toggle('static', !animate);
-  main.innerHTML = `${previewBanner()}<div class="${animate ? 'page-enter' : ''}">${view.render(S.session.route.sub)}</div>`;
+  main.innerHTML = `${S.isDemo() ? `<div class="demo-banner" role="status">${icon('play')}<span>Demo · sample data</span><button class="btn sm" type="button" data-action="demo-exit">Exit demo</button></div>` : ''}${previewBanner()}<div class="${animate ? 'page-enter' : ''}">${view.render(S.session.route.sub)}</div>`;
   view.mount?.(main, { initial: animate });
   countUp(main, animate);
   animateMeters(main);

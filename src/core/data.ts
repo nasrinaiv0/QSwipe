@@ -3,6 +3,7 @@ import { cleanScores } from './engagement';
 /** Settings defaults and strict validation for everything read from storage or imported from a backup. */
 import { sanitizeDucks } from './ducks';
 import { sanitizeTypingBests } from './typing';
+import { sanitizeAccount } from './account';
 import { sanitizeQuestion } from './games';
 import { cleanText, COMMITMENTS, configFromPreset, indexOrg, ancestors, isIsoDate, LEVELS, sanitizeAnnouncementText, sanitizeConfig, sanitizePolicy, statusOf } from './model';
 import type { AppData, AttendanceRecord, AuditEntry, Commitment, CommitmentRecord, Invite, Level, Person, Settings, Workspace } from './types';
@@ -178,7 +179,7 @@ export function sanitizeAppData(input: unknown): AppData {
   }
   const activeId = typeof o.activeId === 'string' && workspaces[o.activeId] ? o.activeId : Object.keys(workspaces)[0] ?? null;
   const best = num(o.triviaBest);
-  return { v: 3, activeId, workspaces, settings: sanitizeSettings(o.settings), triviaBest: best >= 0 && best <= 100 ? Math.round(best) : 0, typing: sanitizeTypingBests(o.typing) };
+  return { v: 3, activeId, workspaces, settings: sanitizeSettings(o.settings), triviaBest: best >= 0 && best <= 100 ? Math.round(best) : 0, typing: sanitizeTypingBests(o.typing), ...(sanitizeAccount(o.account) ? { account: sanitizeAccount(o.account)! } : {}) };
 }
 
 export function parseBackup(text: string): AppData {

@@ -34,7 +34,7 @@ export const welcome: View = {
             ${field({ id: 'ws-name', label: 'Workspace name', control: '<input class="input" id="ws-name" required minlength="2" maxlength="60" placeholder="e.g. your company, school or office">' })}
             <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong><small>${esc(PRESETS[k].titles.slice().reverse().join(' → '))}</small></button>`).join('')}</div></div>
             <div class="form-grid">
-              ${field({ id: 'owner-name', label: 'Your name', control: '<input class="input" id="owner-name" required minlength="2" maxlength="60" autocomplete="name">' })}
+              ${field({ id: 'owner-name', label: 'Your name', control: `<input class="input" id="owner-name" required minlength="2" maxlength="60" autocomplete="name" value="${esc(S.account()?.name ?? '')}">` })}
               ${field({ id: 'owner-level', label: 'Your role', control: `<select class="select" id="owner-level">${roleOptions(1)}</select>` })}
               ${field({ id: 'owner-branch', label: branchLabel(1), cls: 'span-2', control: '<input class="input" id="owner-branch" maxlength="40" placeholder="Optional">', })}
             </div>

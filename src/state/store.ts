@@ -3,6 +3,8 @@ import { addScore, type PlayScore } from '../core/engagement';
 /** Application state: persisted AppData plus session UI state, selectors and permission-checked mutations. */
 import { acceptReceipt, createInvite, joinFromInvite, verifyPass, type InviteCode, type PassCode, type ReceiptCode } from '../core/codes';
 import { emptyAppData, sanitizeAppData, sanitizeSettings, STORAGE_KEY } from '../core/data';
+import { createAccount, verifyPassword } from '../core/account';
+import { createDemoData } from '../core/demo';
 import { duckKey, MAX_SAVED_LOOKS, sanitizeLook, type DuckLook } from '../core/ducks';
 import { sanitizeQuestion } from '../core/games';
 import * as M from '../core/model';
@@ -41,8 +43,64 @@ export const session: Session = {
 /* Persistence                                                         */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Sign-in and demo mode                                               */
+/* ------------------------------------------------------------------ */
+// Real data lives in localStorage. The demo lives in sessionStorage under its own key, so sample data never mixes
+// with real records and disappears when the tab closes or the person taps "Exit demo".
+const DEMO_KEY = 'qswipe-demo-v3', MODE_KEY = 'qswipe-mode', AUTH_KEY = 'qswipe-auth';
+const safe = <T>(fn: () => T, fallback: T): T => { try { return fn(); } catch { return fallback; } };
+/** Moves to the app's start page without a second render from a hashchange event. */
+export function goHome() {
+  const page = hasWorkspace() ? 'today' : 'welcome';
+  session.route = { page, sub: '' };
+  history.replaceState(null, '', `#/${page}`);
+}
+export const isDemo = () => safe(() => sessionStorage.getItem(MODE_KEY) === 'demo', false);
+const store = () => (isDemo() ? sessionStorage : localStorage);
+const key = () => (isDemo() ? DEMO_KEY : STORAGE_KEY);
+const realAccount = () => safe(() => sanitizeAppData(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')).account, undefined);
+export const account = () => (isDemo() ? undefined : data.account);
+export const hasAccount = () => !!realAccount();
+/** Signed in for this tab, or on this device when "Keep me signed in" was chosen. */
+export const isSignedIn = () => isDemo() || safe(() => sessionStorage.getItem(AUTH_KEY) === '1' || localStorage.getItem(AUTH_KEY) === '1', false);
+
+export async function signUp(name: string, password: string, remember: boolean) {
+  const acct = await createAccount(name, password);
+  data.account = acct;
+  flush(true);
+  markSignedIn(remember);
+}
+export async function signIn(password: string, remember: boolean): Promise<boolean> {
+  const acct = realAccount();
+  if (!acct || !(await verifyPassword(acct, password))) return false;
+  markSignedIn(remember);
+  return true;
+}
+function markSignedIn(remember: boolean) {
+  safe(() => { sessionStorage.setItem(AUTH_KEY, '1'); if (remember) localStorage.setItem(AUTH_KEY, '1'); }, undefined);
+}
+export function signOut() {
+  flush();
+  safe(() => { sessionStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_KEY); }, undefined);
+}
+export function startDemo() {
+  flush();
+  safe(() => { sessionStorage.setItem(MODE_KEY, 'demo'); sessionStorage.setItem(DEMO_KEY, JSON.stringify({ ...createDemoData(), settings: data.settings })); }, undefined);
+  load();
+}
+export function endDemo() {
+  safe(() => { sessionStorage.removeItem(MODE_KEY); sessionStorage.removeItem(DEMO_KEY); }, undefined);
+  load();
+}
+/** Forgotten password on a local account: the only recovery is erasing this device's QSwipe data. */
+export function eraseDevice() {
+  safe(() => { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(AUTH_KEY); sessionStorage.clear(); }, undefined);
+  data = emptyAppData();
+}
+
 export function load(): void {
-  try { data = sanitizeAppData(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null')); } catch { data = emptyAppData(); }
+  try { data = sanitizeAppData(JSON.parse(store().getItem(key()) ?? 'null')); } catch { data = emptyAppData(); }
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -53,12 +111,12 @@ export function flush(force = false): boolean {
   clearTimeout(timer);
   if (!dirty && !force) return true;
   dirty = false;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); return true; } catch {
+  try { store().setItem(key(), JSON.stringify(data)); return true; } catch {
     document.dispatchEvent(new CustomEvent('qswipe:storage-error'));
     return false;
   }
 }
-export const storageBytes = () => new Blob([localStorage.getItem(STORAGE_KEY) ?? '']).size;
+export const storageBytes = () => new Blob([store().getItem(key()) ?? '']).size;
 
 /* ------------------------------------------------------------------ */
 /* Selectors                                                           */
