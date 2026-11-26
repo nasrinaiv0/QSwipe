@@ -276,7 +276,7 @@ export const play: View = {
     const id = game(), key=scopeKey();
     if(key!==contextKey || id!==lastGame){resetResult();g.trivia=null;clearChallenge();if(key!==contextKey)g.history=[];contextKey=key;lastGame=id;}
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
-    const liveLink = `<nav class="cluster game-mode-nav" aria-label="Game mode"><a class="btn primary" href="#/play" aria-current="page">On this device</a><a class="btn" href="./rooms/">${icon('users')}Live rooms</a></nav>`;
+    const liveLink = `<nav class="cluster game-mode-nav" aria-label="Game mode"><a class="btn primary" href="#/play" aria-current="page">On this device</a><a class="btn" href="./rooms/">${icon('users')}Live rooms</a><a class="btn" href="./rooms/attendance.html">Attendance</a></nav>`;
     if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.',actions:liveLink})}${tabs}${challengeView()}`;
     const t = g.trivia;
     const stage = id === 'wheel' ? wheel() : id === 'race' ? race() : id === 'cards' ? cards() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);

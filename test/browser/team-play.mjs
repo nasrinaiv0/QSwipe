@@ -53,7 +53,7 @@ try{
   const downloadPromise=page.waitForEvent('download');await page.locator('[data-action=rep-export]').click();const csv=await downloadPromise;
   const csvText=await readFile(await csv.path(),'utf8');assert.equal(csvText.trim().split('\r\n').length,4);assert.equal(csvText.split('\n').filter(x=>x.includes('"Former member"')).length,1);assert.equal(csvText.split('\n').filter(x=>x.includes('"Current member"')).length,2);
   await page.screenshot({path:'team-play-previews/'+name+'-historical-reports.png',fullPage:true,animations:'disabled'});
-  await page.goto(origin+'/#/play');await page.locator('.game-mode-nav').waitFor();assert.equal(await page.locator('.game-mode-nav a[aria-current=page]').textContent(),'On this device');assert.equal(await page.locator('.game-mode-nav a').last().getAttribute('href'),'./rooms/');
+  await page.goto(origin+'/#/play');await page.locator('.game-mode-nav').waitFor();assert.equal(await page.locator('.game-mode-nav a[aria-current=page]').textContent(),'On this device');assert.equal(await page.locator('.game-mode-nav a[href="./rooms/"]').getAttribute('href'),'./rooms/');
   await page.screenshot({path:'team-play-previews/'+name+'-unified-play.png',fullPage:true,animations:'disabled'});
   await page.goto(origin+'/#/welcome');await page.locator('#ws-name').fill('Other Team');await page.locator('#owner-name').fill('Taylor');await page.locator('#create-form button[type=submit]').click();
   await page.locator('.engage-summary').waitFor();await page.goto(origin+'/#/play/challenge');await page.locator('.challenge-players').waitFor();assert.equal(await page.locator('.engage-rank').count(),0);assert.equal(await page.locator('.achievement.unlocked').count(),0);
