@@ -117,6 +117,8 @@ export interface Settings {
   textSize: 'default' | 'large';
   motion: 'system' | 'full' | 'reduced';
   glass: 'regular' | 'clear' | 'tinted';
+  /** Design language: follow the device, or force the iOS or Android (Material 3) look. */
+  platform: 'auto' | 'ios' | 'android';
   undoSeconds: 5 | 10 | 30;
   swipeSensitivity: 'gentle' | 'balanced' | 'quick';
   triviaTimer: 0 | 15 | 30;
@@ -131,6 +133,8 @@ export interface AppData {
   workspaces: Record<string, Workspace>;
   settings: Settings;
   triviaBest: number;
+  /** Typing race personal bests on this device, per test length in seconds. */
+  typing: import('./typing').TypingBests;
 }
 
 export interface Org {

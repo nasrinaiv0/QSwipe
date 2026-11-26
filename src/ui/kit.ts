@@ -244,13 +244,14 @@ export function haptic(pattern: number | number[] = 12) {
 }
 
 let audio: AudioContext | null = null;
-function tone(freq: number, duration = 0.08, o: { type?: OscillatorType; gain?: number; delay?: number } = {}) {
+function tone(freq: number, duration = 0.08, o: { type?: OscillatorType; gain?: number; delay?: number; to?: number } = {}) {
   if (!settings().sound) return;
   try {
     audio ??= new AudioContext();
     const t = audio.currentTime + (o.delay ?? 0), osc = audio.createOscillator(), g = audio.createGain();
     osc.type = o.type ?? 'sine';
     osc.frequency.setValueAtTime(freq, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + duration);
     g.gain.setValueAtTime(o.gain ?? 0.05, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
     osc.connect(g).connect(audio.destination);
@@ -263,6 +264,14 @@ export const sound = {
   pop: () => tone(660, 0.09, { type: 'triangle', gain: 0.07 }),
   wrong: () => tone(220, 0.14, { type: 'sawtooth', gain: 0.03 }),
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.16, { type: 'triangle', gain: 0.06, delay: i * 0.09 })),
+  /* Typing race */
+  key: () => tone(1500 + Math.random() * 400, 0.018, { type: 'square', gain: 0.012 }),
+  miss: () => tone(170, 0.09, { type: 'square', gain: 0.03 }),
+  word: () => tone(1180, 0.035, { type: 'sine', gain: 0.025 }),
+  combo: () => [880, 1175, 1568].forEach((f, i) => tone(f, 0.1, { type: 'triangle', gain: 0.05, delay: i * 0.06 })),
+  count: () => tone(660, 0.12, { gain: 0.06 }),
+  go: () => tone(990, 0.26, { gain: 0.07 }),
+  dash: () => tone(260, 0.28, { type: 'triangle', gain: 0.05, to: 1300 }),
 };
 
 export function confetti(o: { x?: number; y?: number; count?: number } = {}) {

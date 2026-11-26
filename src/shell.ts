@@ -55,7 +55,7 @@ export function renderShell() {
       <button class="search-btn" type="button" data-action="open-palette" aria-label="Search and commands (${modKey} K)">${icon('search')}<span class="label-text">Search…</span><kbd>${modKey} K</kbd></button>
       <button class="icon-btn" type="button" data-action="scan" aria-label="Scan a QR code" title="Scan QR">${icon('scan')}</button>
       <button class="icon-btn theme-toggle" type="button" data-action="toggle-theme" aria-label="Switch to ${dark ? 'light' : 'dark'} theme">${icon(dark ? 'sun' : 'moon')}</button>
-      <button class="me-btn" type="button" data-action="open-account" aria-label="Account: ${esc(me.name)}">${avatar(me, 'sm', { round: true })}<span class="who"><strong>${esc(me.name)}</strong><small>${esc(S.levelTitle(me.level))}</small></span>${icon('chevronDown')}</button>
+      <button class="me-btn" type="button" data-action="open-account" aria-label="Account: ${esc(me.name)}" title="${esc(me.name)}">${avatar(me, 'sm', { round: true })}</button>
     </div>`;
   const moreActive = !TABBAR.includes(page.id), moreBadge = S.unreadCount();
   const prevTab = $('#tabbar .tab[aria-current]')?.getBoundingClientRect();
@@ -79,8 +79,9 @@ export function applyAppearance() {
   s.density === 'comfortable' ? (root.dataset.density = 'comfortable') : delete root.dataset.density;
   s.textSize === 'large' ? (root.dataset.text = 'large') : delete root.dataset.text;
   s.glass !== 'regular' ? (root.dataset.glass = s.glass) : delete root.dataset.glass;
+  root.dataset.ui = s.platform === 'android' || (s.platform !== 'ios' && root.dataset.os === 'android') ? 'material' : 'ios';
   s.motion === 'reduced' || (s.motion === 'system' && mqMotion.matches) ? (root.dataset.motion = 'reduce') : delete root.dataset.motion;
-  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#000000' : '#f2f2f7';
+  $<HTMLMetaElement>('meta[name="theme-color"]')!.content = getComputedStyle(root).getPropertyValue('--bg').trim() || (dark ? '#000000' : '#f2f2f7');
 }
 mqDark.addEventListener('change', () => { applyAppearance(); if (S.hasWorkspace()) renderShell(); });
 mqMotion.addEventListener('change', applyAppearance);
