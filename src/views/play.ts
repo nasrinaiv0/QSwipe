@@ -57,7 +57,7 @@ const duckRace = createRace({
 });
 
 const rush = createRush({ entries, active: () => activeGame('rush'), onFinish: text => record(text) });
-const typing = createTyping({ entries, onFinish: text => record(text) });
+const typing = createTyping({ entries, scope: scopeKey, onFinish: text => record(text) });
 
 /* ------------------------------------------------------------------ */
 /* Wheel                                                               */

@@ -1666,6 +1666,34 @@ dialog { color: var(--ink); }
 .tr-ready h2 { font-size: 1.5rem; }
 .tr-prev { padding: 6px 14px; border-radius: var(--r-pill); background: var(--good-soft); color: var(--good-ink); font-size: .9rem; }
 
+.tr-game-picker { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tr-rules { max-width: 46ch; font-size: .85rem; }
+.tr-character { width: 112px; align-self: stretch; padding: 8px; border-radius: 14px; background: var(--fill-2); }
+.tr-character strong { max-width: 100%; font-size: .86rem; }
+.tr-character .input { width: 100%; min-width: 0; }
+.tr-arena { width: 100%; border-radius: 16px; padding: 10px; background: var(--fill-2); }
+.tr-arena-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin: 0 4px 8px; }
+.tr-arena-title span { color: var(--muted); font-size: .82rem; }
+.tr-fighters { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.tr-fighter { display: grid; gap: 2px; justify-items: center; padding: 8px; border-radius: 12px; background: var(--surface); }
+.tr-fighter:nth-child(2) { grid-column: 3; }
+.tr-fighter strong { max-width: 100%; }
+.tr-fighter .critter { width: 64px; height: 64px; }
+.tr-fighter:nth-child(2) .critter svg { transform: scaleX(-1); }
+.tr-fighter .critter.spark .cr-body { animation: tr-strike .32s var(--ease-out); }
+@keyframes tr-strike { 35% { transform: translateX(6px) rotate(12deg) scale(1.12); } }
+.tr-fighter small { color: var(--muted); font-size: .75rem; }
+.tr-fighter-score { color: var(--ink-2); }
+.tr-fighter-score b { font-family: var(--rounded); font-size: 1.35rem; }
+.tr-versus { grid-column: 2; grid-row: 1; font-size: .78rem; font-weight: 800; color: var(--accent-ink); }
+.tr-arena[data-game-style="neon"] .tr-fighter:first-child { background: var(--accent-tint); }
+.tr-arena[data-game-style="neon"] .tr-fighter:nth-child(2) { background: var(--good-soft); }
+.tr-arena[data-game-style="street"] .tr-fighter { border-bottom: .5px solid var(--accent); }
+.tr-arena[data-game-style="boxing"] .tr-fighter { border-bottom: .5px solid var(--bad-ink); }
+.tr-round-results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: min(100%, 420px); }
+.tr-round-results div { display: grid; padding: 6px; border-radius: 12px; background: var(--fill-2); }
+.tr-round-results small { color: var(--muted); }
+
 /* Track: one lane per racer; name column, then the road with a checkered finish */
 .tr-track { width: 100%; display: grid; gap: 4px; padding: 6px; border-radius: 16px; background: var(--fill-2); }
 .tr-lane { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 8px; height: 48px; }
