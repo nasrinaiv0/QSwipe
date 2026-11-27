@@ -2,7 +2,7 @@ import { bus } from '../bus';
 import { parseBackup } from '../core/data';
 import { canAccess, FEATURES, isoDate, PRESETS, requiredLevel, shiftLabel } from '../core/model';
 import type { Preset, Settings, Titles } from '../core/types';
-import { applyAppearance, modKey, SHORTCUTS } from '../shell';
+import { applyAppearance, SHORTCUTS } from '../shell';
 import * as S from '../state/store';
 import { $, confirmDialog, download, esc, icon, lockedPanel, plural, toast, withTransition } from '../ui/kit';
 import { field, options, pageHead, type View } from './common';
@@ -24,18 +24,18 @@ const toggle = (key: keyof Settings, label: string) => `<label class="switch"><i
 
 function appearance() {
   const s = S.settings();
-  return `<section class="card"><div class="card-head"><h2>${icon('palette')}Appearance</h2><span class="pill">This device</span></div>
+  return `<section class="card"><div class="card-head"><h2>${icon('palette')}Appearance</h2></div>
     ${setting('Theme', '', `<div class="theme-cards">${(['system', 'light', 'dark'] as const).map(t => `<button class="theme-card" type="button" data-action="set" data-key="theme" data-value="${t}" aria-pressed="${s.theme === t}"><span class="preview ${t}"><i></i><i></i></span><span>${icon(t === 'system' ? 'monitor' : t === 'light' ? 'sun' : 'moon')}${t[0]!.toUpperCase() + t.slice(1)}</span></button>`).join('')}</div>`, true)}
     ${setting('Accent', '', `<div class="swatches">${(Object.keys(ACCENTS) as Settings['accent'][]).map(a => `<button class="swatch" type="button" style="background:${ACCENTS[a]}" data-action="set" data-key="accent" data-value="${a}" aria-pressed="${s.accent === a}" aria-label="${a}">${icon('check')}</button>`).join('')}</div>`)}
-    ${setting('Style', 'Automatic follows your device.', seg('platform', [['auto', 'Automatic'], ['ios', 'iOS'], ['android', 'Android']]))}
-    ${document.documentElement.dataset.ui === 'material' ? '' : setting('Glass', 'Clear shows more behind bars and sheets.', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
+    ${setting('Style', '', seg('platform', [['auto', 'Automatic'], ['ios', 'iOS'], ['android', 'Android']]))}
+    ${document.documentElement.dataset.ui === 'material' ? '' : setting('Glass', '', seg('glass', [['clear', 'Clear'], ['regular', 'Regular'], ['tinted', 'Tinted']]))}
     ${setting('Density', '', seg('density', [['compact', 'Compact'], ['comfortable', 'Comfortable']]))}
     ${setting('Text size', '', seg('textSize', [['default', 'Default'], ['large', 'Large']]))}
-    ${setting('Motion', 'Reduced turns off animations.', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;
+    ${setting('Motion', '', seg('motion', [['system', 'System'], ['full', 'Full'], ['reduced', 'Reduced']]))}</section>`;
 }
 
 function attendanceSec() {
-  return `<section class="card"><div class="card-head"><h2>${icon('hand')}Attendance & feedback</h2><span class="pill">This device</span></div>
+  return `<section class="card"><div class="card-head"><h2>${icon('hand')}Attendance & feedback</h2></div>
     ${setting('Undo window', '', seg('undoSeconds', [[5, '5s'], [10, '10s'], [30, '30s']]))}
     ${setting('Swipe sensitivity', 'Fast flicks always count.', seg('swipeSensitivity', [['gentle', 'Gentle'], ['balanced', 'Balanced'], ['quick', 'Quick']]))}
     ${setting('Confirm before absent', '', toggle('confirmAbsent', 'Confirm before absent'))}
@@ -50,9 +50,9 @@ function workspace() {
     <form class="stack" id="ws-form" data-submit="ws-save">
       <div class="form-grid">
         ${field({ id: 'ws-name', label: 'Name', control: `<input class="input" id="ws-name" maxlength="60" value="${esc(c.name)}">` })}
-        ${field({ id: 'ws-preset', label: 'Template', control: `<select class="select" id="ws-preset">${options((Object.keys(PRESETS) as Preset[]).map(k => [k, PRESETS[k].label]), c.preset)}</select>`, hint: 'Changing it does not overwrite your custom labels.' })}
+        ${field({ id: 'ws-preset', label: 'Template', control: `<select class="select" id="ws-preset">${options((Object.keys(PRESETS) as Preset[]).map(k => [k, PRESETS[k].label]), c.preset)}</select>`, hint: 'Keeps custom labels.' })}
         ${field({ id: 'ws-start', label: 'Shift starts', control: `<input class="input" type="time" id="ws-start" value="${c.shiftStart}">` })}
-        ${field({ id: 'ws-end', label: 'Shift ends', control: `<input class="input" type="time" id="ws-end" value="${c.shiftEnd}">`, hint: 'An end before the start means an overnight shift.' })}
+        ${field({ id: 'ws-end', label: 'Shift ends', control: `<input class="input" type="time" id="ws-end" value="${c.shiftEnd}">`, hint: 'Earlier end times mean overnight shifts.' })}
         <div class="field span-2"><span class="label">Session days</span><div class="weekday-toggle" role="group" aria-label="Session days">${DAYS.map((d, i) => `<button type="button" data-action="ws-day" data-day="${i}" aria-pressed="${c.days.includes(i)}">${d}</button>`).join('')}</div></div>
         <div class="field span-2"><label for="ws-target">Coverage target · <b id="ws-target-v">${c.targetPct}%</b></label><input type="range" id="ws-target" min="50" max="100" step="5" value="${c.targetPct}" data-input="ws-target"></div>
       </div>
@@ -69,7 +69,7 @@ function workspace() {
 function access() {
   const w = S.ws(), me = S.me(), editable = S.can('settings.access'), titles = S.cfg().titles;
   const counts = [0, 1, 2, 3].map(l => w.people.filter(p => p.level === l).length);
-  return `<section class="card"><div class="card-head"><div><h2>Access</h2><p class="sub">Minimum level per feature · owners can do everything</p></div>
+  return `<section class="card"><div class="card-head"><div><h2>Access</h2><p class="sub">Minimum level per feature</p></div>
       ${editable ? `<button class="btn sm ghost" type="button" data-action="policy-reset">${icon('refresh')}Defaults</button>` : `<span class="pill">${icon('lock')}Read only</span>`}</div>
     <div class="table-wrap"><table class="matrix"><thead><tr><th>Feature</th>${[0, 1, 2, 3].map(l => `<th class="${me.level === l ? 'current' : ''}">L${l}<br>${esc(titles[l as 0])}<br><span class="muted">${plural(counts[l]!, 'person', 'people')}</span></th>`).join('')}</tr></thead><tbody>
       ${FEATURES.map(f => {
@@ -80,13 +80,13 @@ function access() {
           return `<td class="${me.level === l ? 'current' : ''}"><button class="cell-btn ${on ? 'on' : ''} ${l === min ? 'min' : ''}" type="button" ${editable ? `data-action="policy-set" data-feature="${f.key}" data-level="${l}"` : 'disabled'} aria-label="${esc(f.label)}: ${on ? 'allowed' : 'not allowed'} for ${esc(titles[l as 0])}${editable ? `. Set minimum to level ${l}` : ''}">${icon(on ? 'check' : 'minus')}</button></td>`;
         }).join('')}</tr>`;
       }).join('')}</tbody></table></div>
-    <p class="hint" style="margin-top:10px">${editable ? 'Tap a cell to make that level the minimum for the feature.' : `Only the workspace owner can change this policy.`} You (${esc(me.name)}) can use ${FEATURES.filter(f => canAccess(w, me, f.key)).length} of ${FEATURES.length} features.</p></section>`;
+    <p class="hint" style="margin-top:10px">${editable ? 'Select a cell to set minimum access.' : `Only the owner can edit access.`} You can use ${FEATURES.filter(f => canAccess(w, me, f.key)).length} of ${FEATURES.length} features.</p></section>`;
 }
 
 function data() {
   const bytes = S.storageBytes(), w = S.ws();
   return `<section class="card"><div class="card-head"><h2>${icon('database')}Data & privacy</h2></div>
-    <div class="notice" style="margin-bottom:12px">${icon('shield')}<span>Stored only in this browser. No account, no server.</span></div>
+    <div class="notice" style="margin-bottom:12px">${icon('shield')}<span>Workspace data stays in this browser.</span></div>
     ${setting('Storage used', `${(bytes / 1024).toFixed(1)} KB across ${plural(Object.keys(S.data.workspaces).length, 'workspace')}. Browsers allow roughly 5 MB.`, `<div class="meter" style="width:160px"><span data-width="${Math.min(100, (bytes / 5e6) * 100).toFixed(1)}%"></span></div>`)}
     ${setting('Export backup', 'Download all workspaces and settings as JSON.', `<button class="btn" type="button" data-action="backup-export">${icon('download')}Export</button>`)}
     ${setting('Import backup', 'Replaces everything on this device with the file’s contents.', `<label class="btn" for="backup-file">${icon('upload')}Import</label><input class="sr-only" type="file" id="backup-file" accept="application/json,.json" data-change="backup-import">`)}
@@ -96,7 +96,7 @@ function data() {
 }
 
 const about = () => `<section class="card"><div class="card-head"><h2>${icon('keyboard')}Keyboard shortcuts</h2></div><div class="shortcut-grid">${SHORTCUTS.map(([k, d]) => `<div class="shortcut"><span>${esc(d)}</span><span><kbd>${esc(k)}</kbd></span></div>`).join('')}</div>
-  <div class="divider"></div><dl class="kv"><dt>Version</dt><dd>${esc(__APP_VERSION__)}</dd><dt>Search</dt><dd>${modKey} K</dd><dt>Storage</dt><dd>Local only</dd></dl></section>`;
+  <div class="divider"></div><dl class="kv"><dt>Version</dt><dd>${esc(__APP_VERSION__)}</dd><dt>Storage</dt><dd>Local only</dd></dl></section>`;
 
 let days: number[] | null = null;
 

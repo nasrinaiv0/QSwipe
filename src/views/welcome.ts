@@ -24,15 +24,15 @@ export const welcome: View = {
     const back = S.hasWorkspace();
     return `<div class="onboard-inner page-enter">
       <div class="between">
-        <div class="onboard-brand">${mascot('hi', { size: 64 })}<div><strong>QSwipe</strong><small>Attendance, team tracking and games</small></div></div>
+        <div class="onboard-brand">${mascot('hi', { size: 44 })}<strong>QSwipe</strong></div>
         ${back ? `<a class="btn ghost" href="#/today">${icon('chevronLeft')}Back to ${esc(S.cfg().name)}</a>` : ''}
       </div>
       <div class="onboard-grid">
         <section class="card" aria-labelledby="create-h">
           <div class="card-head"><div><h2 id="create-h">Create a workspace</h2></div></div>
           <form class="stack" id="create-form" autocomplete="off" novalidate>
-            ${field({ id: 'ws-name', label: 'Workspace name', control: '<input class="input" id="ws-name" required minlength="2" maxlength="60" placeholder="e.g. your company, school or office">' })}
-            <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong><small>${esc(PRESETS[k].titles.slice().reverse().join(' → '))}</small></button>`).join('')}</div></div>
+            ${field({ id: 'ws-name', label: 'Workspace name', control: '<input class="input" id="ws-name" required minlength="2" maxlength="60">' })}
+            <div class="field"><span class="label">Type</span><div class="preset-grid" role="group" aria-label="Workspace type">${(Object.keys(PRESETS) as Preset[]).map(k => `<button class="preset" type="button" data-preset="${k}" aria-pressed="${k === preset}"><strong>${esc(PRESETS[k].label)}</strong></button>`).join('')}</div></div>
             <div class="form-grid">
               ${field({ id: 'owner-name', label: 'Your name', control: `<input class="input" id="owner-name" required minlength="2" maxlength="60" autocomplete="name" value="${esc(S.account()?.name ?? '')}">` })}
               ${field({ id: 'owner-level', label: 'Your role', control: `<select class="select" id="owner-level">${roleOptions(1)}</select>` })}
@@ -44,10 +44,10 @@ export const welcome: View = {
         </section>
         <div class="stack">
           <section class="card" aria-labelledby="join-h">
-            <div class="card-head"><div><h2 id="join-h">Join the team</h2><p class="sub">Scan your leader's invite QR</p></div></div>
+            <div class="card-head"><div><h2 id="join-h">Join a team</h2></div></div>
             <button class="btn primary block" type="button" data-action="join-team">${icon('camera')}Scan invite QR</button>
           </section>
-          <p class="privacy-note">${icon('shield')}<span>Stored only in this browser. No account, no server.</span></p>
+          <p class="privacy-note">${icon('shield')}<span>Workspace data stays in this browser.</span></p>
         </div>
       </div>
     </div>`;
@@ -76,7 +76,7 @@ export const welcome: View = {
       const ws = createWorkspace({ name: val('#ws-name'), preset, ownerName: val('#owner-name'), ownerLevel: Number(levelSel.value) as Level, ownerBranch: val('#owner-branch') });
       S.addWorkspace(ws);
       bus.navigate('today');
-      toast('Workspace created. Invite your team with a QR code from the Team page.', { icon: 'check', duration: 4500 });
+      toast('Workspace created.', { icon: 'check', duration: 4500 });
     });
     if (matchMedia('(hover: hover)').matches) $<HTMLInputElement>('#ws-name', root)!.focus();
   },

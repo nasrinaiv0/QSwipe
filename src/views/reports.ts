@@ -105,7 +105,7 @@ export const reports: View = {
       <div class="seg" role="tablist" aria-label="Sessions">${[5, 10, 20].map(n => `<button type="button" role="tab" data-action="rep-range" data-n="${n}" aria-selected="${ui.reportRange === n}" aria-label="Last ${n} sessions">${n}</button>`).join('')}</div>
       ${lead.length > 1 ? `<select class="select" style="width:auto" data-change="rep-branch" aria-label="Branch">${options([['all', 'All branches'], ...lead.map(p => [p.id, p.branch || p.name] as [string, string])], ui.reportBranch)}</select>` : ''}
       <button class="btn sm ${canExport ? '' : 'ghost'}" type="button" data-action="rep-export" ${canExport ? '' : `disabled title="Requires ${esc(S.levelTitle(requiredLevel(S.ws().policy, 'reports.export')))}"`}>${icon(canExport ? 'download' : 'lock')}CSV</button>` });
-    if (!people.length) return `${head}<section class="card">${emptyState({ icon: 'users', title: 'Nobody to report on yet', body: 'Invite people to your branch first.', actions: S.can('people.manage') ? `<a class="btn primary" href="#/team/invites">${icon('qr')}Join my team</a>` : '' })}</section>`;
+    if (!people.length) return `${head}<section class="card">${emptyState({ icon: 'users', title: 'No teammates to report on', actions: S.can('people.manage') ? `<a class="btn primary" href="#/team/invites">${icon('qr')}Join my team</a>` : '' })}</section>`;
     const audit = S.ws().audit.filter(e => people.some(p => p.id === e.subject) || e.actor === S.me().id).slice(0, 12);
     const groups = new Map<string,{name:string;present:number;absent:number;n:number}>();
     for(const d of dates){const roster=rosterAt(S.ws(),d);for(const p of dateScope(d)){const leader=roster.find(x=>x.id===p.parentId);const key=leader?.id??'unassigned';const g=groups.get(key)??{name:leader?(leader.branch||leader.name):'Unassigned',present:0,absent:0,n:0};const st=statusOf(recordsFor(d)?.[p.id]);if(st==='present')g.present++;if(st==='absent')g.absent++;g.n++;groups.set(key,g);}}
@@ -118,11 +118,11 @@ export const reports: View = {
         ${kpi({ label: 'Perfect', value: perfect, icon: 'trophy', key: 'rep-perfect', foot: `of ${people.length}` })}
       </div>
       <section class="card"><div class="card-head"><h2>Daily</h2><div class="legend"><span><i class="present"></i>Present</span><span><i class="absent"></i>Absent</span><span><i class="pending"></i>Unmarked</span></div></div>
-        ${dates.length ? chart(series) : '<p class="muted small">No scheduled sessions since this workspace was created.</p>'}
-        <p class="hint">Unmarked records are never counted as absences. Roster changes apply from the next local date. ${dates.some(d=>!snapshotAt(S.ws(),d))?'Older dates show identifiable marked records only; eligibility was not recorded.':''}</p></section>
+        ${dates.length ? chart(series) : '<p class="muted small">No scheduled sessions yet.</p>'}
+        <p class="hint">Absences count marked records only. Roster changes apply the next local day. ${dates.some(d=>!snapshotAt(S.ws(),d))?'Older sessions show identifiable marks only.':''}</p></section>
       <div class="grid two section">
         <section class="card"><div class="card-head"><h2>${icon('hierarchy')}By branch</h2><span class="pill">Rate</span></div>
-          ${branchRows.length ? `<div class="hbars">${branchRows.map(r => `<div class="hbar"><span class="name" title="${esc(r.name)}">${esc(r.name)}</span><span class="track"><span class="fill" data-width="${r.rate ?? 0}%"></span><span class="target" style="left:${cfg.targetPct}%" title="Target ${cfg.targetPct}%"></span></span><span class="val">${r.rate === null ? '—' : `${r.rate}%`}</span></div>`).join('')}</div>` : '<p class="muted small">Branch rates appear once leaders have people reporting to them.</p>'}
+          ${branchRows.length ? `<div class="hbars">${branchRows.map(r => `<div class="hbar"><span class="name" title="${esc(r.name)}">${esc(r.name)}</span><span class="track"><span class="fill" data-width="${r.rate ?? 0}%"></span><span class="target" style="left:${cfg.targetPct}%" title="Target ${cfg.targetPct}%"></span></span><span class="val">${r.rate === null ? '—' : `${r.rate}%`}</span></div>`).join('')}</div>` : '<p class="muted small">No branch rates yet.</p>'}
         </section>
         <section class="card"><div class="card-head"><h2>${icon('history')}Audit log</h2><span class="pill">${S.ws().audit.length} events</span></div>
           ${audit.length ? `<div class="list">${audit.map(e => {

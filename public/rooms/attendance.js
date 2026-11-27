@@ -13,7 +13,7 @@ async function request(body){
   const d=await res.json();if(e!==epoch)return;
   if(!res.ok)throw Error(d.error||'UNAVAILABLE');
   if(d.profileCredential){secret=d.profileCredential;try{localStorage.setItem(profileKey,secret);}catch{say('Cannot save this passport. Keep this page open.');}}
-  if(d.profile){profile=d.profile;$('#identity-status').textContent=profile.name;$('#identity-copy').textContent='Signed in with your player passport. The same identity keeps game rewards.';$('#passport-create').hidden=true;$('#recover').hidden=true;}
+  if(d.profile){profile=d.profile;$('#identity-status').textContent=profile.name;$('#identity-copy').textContent='Passport verified.';$('#passport-create').hidden=true;$('#recover').hidden=true;}
   if(d.teams){selected=null;team=null;teamKey='';$('#team-entry').hidden=false;$('#team-workspace').hidden=true;const list=$('#team-list');list.replaceChildren();for(const t of d.teams)list.append(button(t.name+' · '+(t.owner?'Owner':'Member'),()=>request({action:'attendance_state',teamId:t.id}),'team-choice'));if(!d.teams.length)list.append(el('p','Create or join a team to get started.'));}
   if(d.team){selected=d.team.id;team=d.team;renderTeam();}
   $('#connection').textContent='Staging · connected';

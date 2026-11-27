@@ -339,11 +339,11 @@ export function photoFromFile(file: File, size = 128): Promise<string> {
 }
 
 export const lockedPanel = (o: { title: string; need: string; body?: string }) =>
-  `<div class="empty">${mascot('oops', { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Available to ${o.need} and above under this workspace's access policy.`)}</p>
+  `<div class="empty">${mascot('oops', { size: 52 })}<strong>${esc(o.title)}</strong><p>${esc(o.body ?? `Requires ${o.need} or above.`)}</p>
   <div class="cluster"><a class="btn" href="#/team">${icon('hierarchy')}Team</a></div></div>`;
 
-export const emptyState = (o: { icon: string; title: string; body: string; actions?: string; mood?: Mood }) =>
-  `<div class="empty">${mascot(o.mood ?? moodFor(o.icon), { size: 84 })}<strong>${esc(o.title)}</strong><p>${esc(o.body)}</p>${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
+export const emptyState = (o: { icon: string; title: string; body?: string; actions?: string; mood?: Mood }) =>
+  `<div class="empty">${mascot(o.mood ?? moodFor(o.icon), { size: 48 })}<strong>${esc(o.title)}</strong>${o.body ? `<p>${esc(o.body)}</p>` : ''}${o.actions ? `<div class="cluster">${o.actions}</div>` : ''}</div>`;
 
 /** Runs a DOM update inside a View Transition when supported and motion is allowed. Interrupted transitions are harmless. */
 export function withTransition(update: () => void) {

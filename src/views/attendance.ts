@@ -31,20 +31,20 @@ function card(p: Person, pos: number): string {
 
 function deck(): string {
   const { date, today, ui } = S.session;
-  if (date > today) return emptyState({ icon: 'clock', title: 'This session has not started', body: `Attendance for ${fmtDate(date)} opens on the day. Use Commitments to plan ahead.`, actions: `<a class="btn" href="#/commitments">${icon('commitments')}Open commitments</a>` });
+  if (date > today) return emptyState({ icon: 'clock', title: 'Session hasn’t started', body: `Check-in opens ${fmtDate(date)}.`, actions: `<a class="btn" href="#/commitments">${icon('commitments')}Open commitments</a>` });
   const people = S.branch();
   if (ui.attTab === 'verify' && !people.length) {
-    return emptyState({ icon: 'userPlus', title: 'No one reports to you yet', body: 'Invite people with a “Join my team” QR code, or add them manually.', actions: S.can('people.manage') ? `<a class="btn primary" href="#/team/invites">${icon('qr')}Join my team</a><a class="btn" href="#/team">${icon('plus')}Add people</a>` : '' });
+    return emptyState({ icon: 'userPlus', title: 'No direct reports', actions: S.can('people.manage') ? `<a class="btn primary" href="#/team/invites">${icon('qr')}Join my team</a><a class="btn" href="#/team">${icon('plus')}Add people</a>` : '' });
   }
   const q = queue();
   if (!q.length) {
     const s = rosterStats(ui.attTab === 'self' ? [S.me()] : people, S.records(date));
-    return `<div class="done-card">${mascot('cheer', { size: 88 })}<strong>All caught up</strong><span class="pill good">${percent(s.present + s.absent, s.scheduled) ?? 0}% marked</span><p class="muted small">${ui.attTab === 'self' ? `You're marked ${esc(statusOf(S.records(date)[S.me().id]) ?? '')} for ${esc(fmtDate(date))}.` : `${s.present} present · ${s.absent} absent for ${esc(fmtDate(date))}.`}</p>
+    return `<div class="done-card">${mascot('cheer', { size: 52 })}<strong>All caught up</strong><span class="pill good">${percent(s.present + s.absent, s.scheduled) ?? 0}% marked</span><p class="muted small">${ui.attTab === 'self' ? `You're marked ${esc(statusOf(S.records(date)[S.me().id]) ?? '')} for ${esc(fmtDate(date))}.` : `${s.present} present · ${s.absent} absent for ${esc(fmtDate(date))}.`}</p>
       <div class="cluster" style="justify-content:center">${S.can('reports.view') ? `<a class="btn sm" href="#/reports">${icon('reports')}Report</a>` : ''}${canUndoBtn()}</div></div>`;
   }
   const visible = q.slice(0, 3);
   return `<div class="deck-wrap">
-    <div class="deck-count" aria-live="polite">${ui.attTab === 'self' ? '' : `${q.length} left`}</div>
+    ${ui.attTab === 'self' ? '' : `<div class="deck-count" aria-live="polite">${q.length} left</div>`}
     <div class="deck" id="deck">${visible.map((p, i) => card(p, i)).reverse().join('')}</div>
     <div class="deck-actions">
       <button class="round-btn bad" type="button" data-action="deck-mark" data-status="absent" aria-label="Mark absent (←)">${icon('x')}</button>
@@ -81,7 +81,7 @@ function rosterRows(): string {
       <span class="row-actions">${decision.ok ? `<button class="btn sm icon-only good" type="button" data-action="att-quick" data-id="${p.id}" data-status="present" aria-label="Mark ${esc(p.name)} present">${icon('check')}</button><button class="btn sm icon-only bad" type="button" data-action="att-quick" data-id="${p.id}" data-status="absent" aria-label="Mark ${esc(p.name)} absent">${icon('x')}</button>`
         : s && canCorrect && branchIds.has(p.id) ? `<button class="btn sm ghost icon-only" type="button" data-action="att-correct" data-id="${p.id}" aria-label="Correct ${esc(p.name)}" title="Correct">${icon('edit')}</button>` : ''}</span></div>`;
   }).join('');
-  return rows || '<p class="muted small" style="padding:14px 0">Nobody matches this filter.</p>';
+  return rows || '<p class="muted small" style="padding:14px 0">No matches.</p>';
 }
 
 function roster(): string {

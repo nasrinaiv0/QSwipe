@@ -111,7 +111,7 @@ function invitesTab(): string {
   const me = S.me(), w = S.ws();
   const joinCard = `<section class="card"><div class="card-head"><h2>Join the team</h2></div>
     <div class="cluster"><button class="btn primary" type="button" data-action="join-team">${icon('camera')}Scan invite</button>${w.link ? `<button class="btn" type="button" data-action="show-join-code">${icon('userPlus')}My confirmation</button>` : ''}</div></section>`;
-  if (!S.can('people.manage')) return `<div class="grid two">${joinCard}<section class="card">${emptyState({ icon: 'lock', title: 'Inviting is for leaders', body: `${S.levelTitle(requiredLevel(w.policy, 'people.manage'))} and above can show a “Join my team” code.` })}</section></div>`;
+  if (!S.can('people.manage')) return `<div class="grid two">${joinCard}<section class="card">${emptyState({ icon: 'lock', title: 'Invites restricted', body: `${S.levelTitle(requiredLevel(w.policy, 'people.manage'))} or above can invite.` })}</section></div>`;
   const branches = managerCandidates(0);
   const first = branches[0] ?? me;
   const list = w.invites.filter(i => S.isOwner(me) || i.parentId === me.id || isDescendant(S.org(), me.id, i.parentId));
@@ -229,13 +229,11 @@ export const team: View = {
     const tabs = `<div class="seg" role="tablist" aria-label="Team views" style="margin-bottom:var(--gap)">${TABS.map(([id, l]) => `<button type="button" role="tab" data-action="team-tab" data-tab="${id}" aria-selected="${tab === id}">${l}${id === 'invites' && active ? ` <span class="count">${active}</span>` : ''}</button>`).join('')}</div>`;
     if (tab === 'people') return `${head}${tabs}${peopleTable()}`;
     if (tab === 'invites') return `${head}${tabs}${invitesTab()}`;
-    const solo = w.people.length === 1;
     return `${head}${tabs}<div class="grid main-side">
       <section class="card"><div class="org-toolbar"><div class="input-icon">${icon('search')}<input class="input" type="search" id="team-q" placeholder="Find someone" data-input="team-q" value="${esc(S.session.ui.orgQuery)}" aria-label="Find someone"></div>
         <button class="btn sm ghost" type="button" data-action="org-expand">${icon('chevrons')}Expand</button><button class="btn sm ghost" type="button" data-action="org-collapse">${icon('collapse')}Collapse</button></div>
         <div class="org-scroll hide-sm"><div class="org"><ul>${S.org().roots.map(tree).join('')}</ul></div></div>
         <div class="outline show-sm">${outline()}</div>
-        ${solo ? `<div class="divider"></div>${emptyState({ icon: 'userPlus', title: 'Build your team', body: 'Show a “Join my team” QR code to onboard people from their own phones, or add people manually.', actions: S.can('people.manage') ? `<button class="btn primary" type="button" data-action="invite-quick" data-parent="${me.id}">${icon('qr')}Join my team</button><button class="btn" type="button" data-action="person-add" data-parent="${me.id}">${icon('plus')}Add manually</button>` : '' })}` : ''}
       </section>
       <div class="stack loose">${detail(selected)}${accessCard()}</div></div>`;
   },

@@ -142,7 +142,7 @@ function triviaSetup(): string {
     <div class="field"><span class="label">Timer per question</span><div class="seg">${([0, 15, 30] as const).map(n => `<button type="button" data-action="trivia-timer" data-n="${n}" aria-pressed="${S.settings().triviaTimer === n}">${n ? `${n}s` : 'Off'}</button>`).join('')}</div></div>
     ${bank.length ? '' : `<div class="notice">${icon('info')}<span>Your team's question bank is empty, so rounds use generated math questions.${canEditBank() ? ' Add your own questions to make it yours.' : ''}</span></div>`}
     <div class="cluster"><button class="btn primary lg" type="button" data-action="trivia-start">${icon('bulb')}Start round</button>${canEditBank() ? `<button class="btn" type="button" data-action="bank-open">${icon('list')}Question bank (${bank.length})</button>` : ''}</div>
-    ${S.data.triviaBest ? `<p class="hint">Best score on this device: ${S.data.triviaBest}%</p>` : ''}</div>`;
+    ${S.data.triviaBest ? `<p class="hint">Local best ${S.data.triviaBest}%</p>` : ''}</div>`;
 }
 
 function triviaPlay(t: Trivia): string {
@@ -244,7 +244,7 @@ export const play: View = {
     if(key!==contextKey || id!==lastGame){resetResult();rush.stop();g.trivia=null;clearChallenge();if(key!==contextKey){g.history=[];g.rotation=0;duckRace.reset(true);rush.reset();}contextKey=key;lastGame=id;}
     const tabs = `<div class="play-tabs"><div class="seg" role="tablist" aria-label="Games">${GAMES.map(([k, l, ic]) => `<button type="button" role="tab" data-action="game-tab" data-game="${k}" aria-selected="${k === id}">${icon(ic)}${l}</button>`).join('')}</div></div>`;
     const liveLink = `<nav class="cluster game-mode-nav" aria-label="Game mode"><a class="btn primary" href="#/play" aria-current="page">On this device</a><a class="btn" href="./rooms/">${icon('users')}Live rooms</a><a class="btn" href="./rooms/attendance.html">Attendance</a></nav>`;
-    if(id==='challenge') return `${pageHead({title:'Play',lede:'Team games, friendly challenges and rewards.',actions:liveLink})}${tabs}${challengeView()}`;
+    if(id==='challenge') return `${pageHead({title:'Play',actions:liveLink})}${tabs}${challengeView()}`;
     const t = g.trivia;
     const stage = id === 'wheel' ? wheel() : id === 'race' ? duckRace.render() : id === 'cards' ? cards() : id === 'rush' ? rush.render() : id === 'type' ? typing.render() : !t ? triviaSetup() : t.done ? triviaResults(t) : triviaPlay(t);
     return `${pageHead({ title: 'Play', actions: liveLink })}${tabs}
