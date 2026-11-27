@@ -39,6 +39,12 @@ jobs:
           export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
           export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
           node test/browser/team-play.mjs
+      - name: Multiplayer typing fights browser acceptance
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        run: |
+          export QSWIPE_BROWSER_PACKAGE="$RUNNER_TEMP/qswipe-browser"
+          export QSWIPE_CHROME="$(command -v google-chrome || command -v chromium)"
+          node test/browser/typing-fights.mjs
       - name: Live rooms and memory synchronization browser acceptance
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
         run: |
