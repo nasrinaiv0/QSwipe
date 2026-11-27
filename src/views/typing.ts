@@ -80,10 +80,10 @@ export function createTyping(h: TypingHooks) {
       ? `${critterBtn(st.me)}${b && st.ghost ? `<span class="tr-ghost-chip"><span class="critter idle ghosty">${critterSvg(st.me)}</span><span>Best ${b.wpm}</span></span>` : ''}${st.pacer ? `<span class="tr-ghost-chip"><span class="critter idle">${critterSvg('penguin')}</span><span>Pacer ${st.pacer}</span></span>` : ''}`
       : roster.map((p, i) => playerPicker(p, i, roster.length > (game ? 1 : 2))).join('');
     return `<div class="tr-setup">
-      <div class="tr-hero">${mascot('hi', { size: 64 })}<div><h2>${st.mode === 'multi' ? 'Multiplayer typing' : 'Typing race'}</h2>${st.mode === 'solo' ? '<p class="muted">Type fast and stay accurate.</p>' : ''}</div></div>
+      <div class="tr-hero">${mascot('hi', { size: 40 })}<h2>Typing test</h2></div>
       ${seg('tr-mode', [['solo', 'Solo'], ['multi', 'Multiplayer']], st.mode, 'Typing test mode')}
       ${st.mode === 'multi' ? `<div class="tr-game-picker" role="group" aria-label="Multiplayer typing game">${MULTIPLAYER_GAMES.map(([v, label]) => `<button class="chip" type="button" data-action="tr-game" data-v="${v}" aria-pressed="${st.game === v}">${label}</button>`).join('')}</div>
-        <p class="muted tr-rules">${game ? FIGHT_GAMES[game].rules : 'Race to the highest words per minute.'}</p>` : ''}
+        <p class="muted tr-rules">${game ? FIGHT_GAMES[game].rules : 'Highest WPM wins.'}</p>` : ''}
       ${seg('tr-time', MINUTES, st.secs, 'Typing test duration')}
       ${st.mode === 'solo'
         ? `<div class="tr-row"><span class="label">Pacer</span>${seg('tr-pacer', [[0, 'Off'], [40, '40'], [60, '60'], [80, '80']], st.pacer, 'Pacer speed')}</div>`
@@ -95,7 +95,7 @@ export function createTyping(h: TypingHooks) {
         <button class="chip" type="button" data-action="tr-sound" aria-pressed="${S.settings().sound}">${icon('volume')}Sound</button>
       </div>
       <button class="btn primary lg" type="button" data-action="tr-start" ${st.mode === 'multi' && roster.length < 2 ? 'disabled' : ''}>${icon('keyboard')}${game ? 'Start the match' : st.mode === 'multi' ? 'Start the race' : 'Start'}</button>
-      <p class="hint">${st.mode === 'multi' ? `Same device · take turns · ${game ? '2 players' : '2–4 players'}` : b ? `Best for ${st.secs / 60} min: ${b.wpm} wpm` : 'Tip: Enter dashes past one word per race'}</p>
+      <p class="hint">${st.mode === 'multi' ? `Same device · ${game ? '2 players' : '2–4 players'}` : b ? `Best for ${st.secs / 60} min: ${b.wpm} wpm` : 'Enter skips one word'}</p>
     </div>`;
   }
 
@@ -103,7 +103,7 @@ export function createTyping(h: TypingHooks) {
     const r = st.racers[st.turn]!, prev = st.turn > 0 ? st.racers[st.turn - 1]! : null, game = fight();
     return `<div class="tr-ready">
       ${prev ? `<p class="tr-prev"><b>${esc(prev.name)}</b> ${prev.wpm} wpm · ${prev.acc}%</p>` : ''}
-      <span class="critter idle big">${critterSvg(r.critter)}</span>
+      <span class="critter idle tr-ready-character">${critterSvg(r.critter)}</span>
       <h2>Pass to ${esc(r.name)}</h2>
       <p class="muted">${game ? `${FIGHT_GAMES[game].label} · ` : ''}${st.secs / 60} min · player ${st.turn + 1} of ${st.racers.length}</p>
       ${game ? '<p class="hint">Press Space after each word to score.</p>' : ''}

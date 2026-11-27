@@ -8,10 +8,10 @@ import { cbtn, options, pageHead, type View } from './common';
 function composer(): string {
   if (!S.can('updates.post')) return '';
   const audiences = audienceOptions(S.org(), S.me(), S.can('updates.broadcast'));
-  if (!audiences.length) return `<section class="card"><p class="muted small">${icon('info')} Once people report to you, you can post updates to your branch here.</p></section>`;
+  if (!audiences.length) return `<section class="card"><p class="muted small">${icon('info')} Add teammates to post branch updates.</p></section>`;
   return `<section class="card composer"><form id="post-form" data-submit="post">
     <label class="sr-only" for="post-text">Announcement</label>
-    <textarea class="input" id="post-text" maxlength="700" placeholder="Share a schedule change, reminder or shout-out…" data-input="post-count"></textarea>
+    <textarea class="input" id="post-text" maxlength="700" placeholder="Write an update…" data-input="post-count"></textarea>
     <div class="composer-foot">
       <select class="select" id="post-scope" aria-label="Audience">${options(audiences.map(id => [id, S.audienceLabel(id)]), audiences[0]!)}</select>
       <label class="cluster small" style="gap:6px"><span class="switch"><input type="checkbox" id="post-important"><span></span></span>Important</label>
@@ -39,7 +39,7 @@ export const updates: View = {
       <div class="seg" role="tablist" aria-label="Filter">${[['all', 'All', all.length], ['unread', 'Unread', unread], ['important', 'Important', all.filter(a => a.priority === 'important').length]].map(([id, l, n]) => `<button type="button" role="tab" data-action="feed-filter" data-filter="${id}" aria-selected="${f === id}">${l} <span class="count">${n}</span></button>`).join('')}</div>
       ${unread ? cbtn({ label: 'Mark all read', icon: 'check', action: 'post-ack-all' }) : ''}` })}
       <div class="stack" style="max-width:820px">${composer()}
-        <section class="card">${posts || emptyState({ icon: 'updates', title: f === 'all' ? 'No announcements yet' : 'Nothing here', body: f === 'all' ? (S.can('updates.post') ? 'Write the first update above.' : 'Updates from your leaders will appear here.') : 'Try another filter.' })}</section></div>`;
+        <section class="card">${posts || emptyState({ icon: 'updates', title: f === 'all' ? 'No updates yet' : 'No matching updates' })}</section></div>`;
   },
   onKey(e) { return e.key === 'n' && S.can('updates.post') ? ($<HTMLTextAreaElement>('#post-text')?.focus(), true) : false; },
   mount(root) {

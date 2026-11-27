@@ -72,7 +72,7 @@ export function createRush(h: RushHooks) {
 
   function setup(): string {
     const opp = opponents();
-    return `<div class="rush-setup">${mascot('hi', { size: 84 })}<h2>Color Rush</h2><p class="muted">Match the colour or symbol. Empty your hand first.</p>
+    return `<div class="rush-setup">${mascot('hi', { size: 56 })}<h2>Color Rush</h2><p class="muted">Match colours or symbols. First empty hand wins.</p>
       <div class="seg" role="group" aria-label="Opponents">${[1, 2, 3].map(n => `<button type="button" data-action="rush-opp" data-n="${n}" aria-pressed="${r.opp === n}">${n} ${n === 1 ? 'opponent' : 'opponents'}</button>`).join('')}</div>
       <div class="rush-lineup">${[S.me().name, ...opp].map((n, i) => `<span class="rush-player">${avatar(i === 0 ? S.me() : person(n), 'sm', { round: true })}<span class="truncate">${esc(i === 0 ? 'You' : firstName(n))}</span></span>`).join('')}</div>
       <button class="btn primary lg" type="button" data-action="rush-start">${icon('cards')}Deal</button>

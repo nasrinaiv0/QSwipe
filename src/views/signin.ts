@@ -20,9 +20,9 @@ export const signin: View = {
     const existing = S.hasAccount(), name = S.account()?.name;
     return `<div class="signin page-enter">
       <section class="card signin-card" aria-labelledby="si-title">
-        ${mascot('hi', { size: 84 })}
+        ${mascot('hi', { size: 56 })}
         <h1 id="si-title">${existing ? `Welcome back${name ? `, ${esc(name.split(' ')[0])}` : ''}` : 'Welcome to QSwipe'}</h1>
-        <p class="muted">${joining ? (existing ? 'Sign in to join the team.' : 'Create your account to join the team.') : existing ? 'Sign in to continue.' : 'Create your account to start.'}</p>
+        ${joining ? `<p class="muted small">${existing ? 'Sign in' : 'Create an account'} to accept your team invite.</p>` : ''}
         <form class="stack" data-submit="signin-submit" autocomplete="on" novalidate>
           ${existing ? '' : `<div class="field"><label for="si-name">Name</label><input class="input" id="si-name" maxlength="60" autocomplete="name" required></div>`}
           <div class="field"><label for="si-pass">Password</label><input class="input" id="si-pass" type="password" minlength="${MIN_PASSWORD}" autocomplete="${existing ? 'current-password' : 'new-password'}" required></div>
@@ -30,10 +30,9 @@ export const signin: View = {
           <p class="form-error" id="si-error" role="alert"></p>
           <button class="btn primary lg block" type="submit">${existing ? 'Sign in' : 'Create account'}</button>
         </form>
-        <p class="signin-or" aria-hidden="true">or</p>
-        <button class="btn lg block" type="button" data-action="signin-demo">${icon('play')}Try the demo</button>
+        <button class="btn block" type="button" data-action="signin-demo">${icon('play')}Try the demo</button>
         ${existing ? '<button class="btn sm ghost" type="button" data-action="signin-forgot">Forgot password?</button>' : ''}
-        <p class="hint">Your account and data stay on this device. The demo uses sample data and never touches your own.</p>
+        <p class="hint">Account data stays on this device. The demo uses sample data.</p>
       </section>
     </div>`;
   },

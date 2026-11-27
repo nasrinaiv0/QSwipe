@@ -30,7 +30,7 @@ async function init() {
     config = await result(await fetch('/api/staging/config',{cache:'no-store'}));
     if (!config?.staging || !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(config.supabaseUrl)) throw Error('Invalid staging configuration.');
     show('login-panel');
-  } catch { $('#setup-panel').replaceChildren();const h=document.createElement('h2');h.textContent='Staging is safely disabled';const p=document.createElement('p');p.textContent='Connect a dedicated QSwipe staging project and enable preview-only settings to test authentication. The existing demo remains available.';$('#setup-panel').append(h,p); }
+  } catch { $('#setup-panel').replaceChildren();const h=document.createElement('h2');h.textContent='Staging is safely disabled';const p=document.createElement('p');p.textContent='Enable a dedicated staging project to test sign-in.';$('#setup-panel').append(h,p); }
 }
 $('#otp-request').addEventListener('submit',async e => {
   e.preventDefault();

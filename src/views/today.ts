@@ -4,13 +4,8 @@ import { attendanceRate, commitmentOf, dailySeries, relativeTime, rosterStats, s
 import type { Commitment } from '../core/types';
 import { showPass } from '../qr/flows';
 import * as S from '../state/store';
-import { COMMIT_META, esc, firstName, fmtDate, fmtTime, haptic, icon, toast } from '../ui/kit';
+import { COMMIT_META, esc, fmtDate, fmtTime, haptic, icon, toast } from '../ui/kit';
 import { kpi, pageHead, type View } from './common';
-
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-}
 
 export function choiceGrid(date: string) {
   const mine = commitmentOf(S.commitmentsFor(date)[S.me().id]);
@@ -23,15 +18,15 @@ export function choiceGrid(date: string) {
 function checklist(): string {
   const w = S.ws();
   if (!S.isOwner(S.self()) || S.session.previewId) return '';
-  const items: [boolean, string, string, string][] = [
-    [w.people.length > 1, 'Invite your team', 'Show a “Join my team” QR code or add people manually.', '#/team/invites'],
-    [w.announcements.length > 0, 'Post a welcome update', 'Announcements reach each person’s branch.', '#/updates'],
-    [w.trivia.length > 0, 'Add trivia questions', 'Your own question bank for team huddles.', '#/play/trivia'],
+  const items: [boolean, string, string][] = [
+    [w.people.length > 1, 'Invite teammates', '#/team/invites'],
+    [w.announcements.length > 0, 'Post an update', '#/updates'],
+    [w.trivia.length > 0, 'Add trivia questions', '#/play/trivia'],
   ];
   if (items.every(i => i[0]) || w.people.length > 6) return '';
   const done = items.filter(i => i[0]).length;
   return `<section class="card" aria-labelledby="setup-h"><div class="card-head"><h2 id="setup-h">${icon('sparkles')}Get set up</h2><span class="pill">${done}/${items.length}</span></div>
-    <div class="list">${items.map(([ok, title, , href]) => `<a class="row interactive" href="${href}" style="text-decoration:none"><span class="pill ${ok ? 'good' : ''}">${icon(ok ? 'check' : 'arrowRight')}</span><span class="grow"><strong>${esc(title)}</strong></span>${icon('chevronRight')}</a>`).join('')}</div></section>`;
+    <div class="list">${items.map(([ok, title, href]) => `<a class="row interactive" href="${href}" style="text-decoration:none"><span class="pill ${ok ? 'good' : ''}">${icon(ok ? 'check' : 'arrowRight')}</span><span class="grow"><strong>${esc(title)}</strong></span>${icon('chevronRight')}</a>`).join('')}</div></section>`;
 }
 
 export const today: View = {
@@ -52,7 +47,7 @@ export const today: View = {
       <h2>${esc(title)}</h2>
       <p>${sessionDay ? esc(shiftLabel(c)) : `Next: ${esc(fmtDate(next))}`}</p></div>
       <div class="cluster">
-        ${!status && sessionDay ? `<button class="btn primary" type="button" data-action="self-checkin">${icon('login')}Check in</button>` : status === 'present' ? `<span class="checkin-state">${icon('check')}Present</span>` : ''}
+        ${!status && sessionDay ? `<button class="btn primary" type="button" data-action="self-checkin">${icon('login')}Check in</button>` : ''}
         ${S.self().passKey && !S.session.previewId ? `<button class="btn outline" type="button" data-action="show-pass">${icon('qr')}My pass</button>` : ''}
       </div></section>`;
 
@@ -76,7 +71,7 @@ export const today: View = {
         }).join('')}</div></section>`;
     })();
 
-    return `${pageHead({ title: `${greeting()}, ${firstName(me.name)}`, lede: fmtDate(t, { weekday: 'long', month: 'long', day: 'numeric' }) })}
+    return `${pageHead({ title: 'Today', lede: fmtDate(t, { weekday: 'long', month: 'long', day: 'numeric' }) })}
       ${hero}
       ${kpis}
       <div class="grid two reveal">
@@ -99,7 +94,7 @@ export const today: View = {
       if (!res.ok) return void toast(res.error, { icon: 'alert' });
       haptic(15);
       bus.refresh();
-      toast('Checked in. Have a great session!', { icon: 'check', action: { label: 'Undo', fn: () => { S.undo(); bus.refresh(); } }, duration: S.settings().undoSeconds * 1000 });
+      toast('Checked in', { icon: 'check', action: { label: 'Undo', fn: () => { S.undo(); bus.refresh(); } }, duration: S.settings().undoSeconds * 1000 });
     },
     'show-pass': () => void showPass(),
     commit: el => {
