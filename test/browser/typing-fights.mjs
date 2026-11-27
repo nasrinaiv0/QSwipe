@@ -47,13 +47,16 @@ try {
     assert.equal(await page.getByRole('combobox', { name: 'Character for Jamie' }).inputValue(), 'frog');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 
-    await page.clock.install();
+    const startTime = new Date('2026-01-01T10:00:00Z');
+    await page.clock.install({ time: startTime });
+    await page.clock.pauseAt(new Date(startTime.getTime() + 1000));
     await button('Start the match').click();
     await page.getByRole('heading', { name: 'Pass to Alex' }).waitFor();
     await button('Start').click();
     await page.clock.runFor(3000);
     const prompts = await page.locator('.tr-words .tw').allTextContents();
     const typeWord = async () => {
+      assert.equal(await page.locator('#tr-input').evaluate(input => input === document.activeElement), true);
       await page.keyboard.insertText(`${await page.locator('.tw.cur').textContent()} `);
       await page.clock.runFor(50);
     };
@@ -73,13 +76,16 @@ try {
     assert.equal(await page.locator('#tr-round').textContent(), 'Round 2 of 3');
     assert.equal(await page.locator('#tr-points-0').textContent(), '1');
     await typeWord();
+    assert.equal(await page.locator('#tr-points-1').textContent(), '1');
     await page.clock.fastForward(20_000);
     assert.equal(await page.locator('#tr-round').textContent(), 'Round 3 of 3');
     await typeWord();
+    assert.equal(await page.locator('#tr-points-1').textContent(), '2');
     await page.clock.fastForward(21_000);
 
-    await page.getByRole('heading', { name: 'Jamie wins' }).waitFor();
+    await page.locator('.tr-results').waitFor();
     assert.deepEqual(await page.locator('.tr-round-results b').allTextContents(), ['1–0', '0–1', '0–1']);
+    assert.equal(await page.locator('.tr-results h2').textContent(), 'Jamie wins');
     await button('Replay match').click();
     await page.clock.runFor(100);
     assert.equal(await page.locator('#tr-points-1').textContent(), '2');
@@ -90,6 +96,7 @@ try {
     await button('Start').click();
     await page.clock.runFor(3000);
     await button('Dash').waitFor();
+    await typeWord();
     await typeWord();
     await page.clock.fastForward(61_000);
     await page.getByText('New personal best').waitFor();
